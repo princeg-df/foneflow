@@ -480,25 +480,25 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between mx-auto">
-          <div className="flex items-center gap-2 md:gap-4">
+        <div className="container flex h-16 items-center justify-between mx-auto px-4">
+          <div className="flex items-center gap-2">
             <Smartphone className="h-6 w-6 text-primary"/>
-            <h1 className="text-xl md:text-2xl font-bold font-headline text-primary">
+            <h1 className="text-xl sm:text-2xl font-bold font-headline text-primary">
               FoneFlow
             </h1>
           </div>
           
-          <div className="flex items-center gap-1 md:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {isAdmin && (
               <>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
-                <Button variant="outline" size="sm" onClick={handleImportClick}>
-                  <Upload className="mr-1 md:mr-2 h-4 w-4" /> <span className="hidden md:inline">Import</span>
+                <Button variant="outline" size="sm" onClick={handleImportClick} className="p-2 sm:px-3">
+                  <Upload className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Import</span>
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Download className="mr-1 md:mr-2 h-4 w-4" /> <span className="hidden md:inline">Export</span>
+                    <Button variant="outline" size="sm" className="p-2 sm:px-3">
+                      <Download className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Export</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
@@ -512,14 +512,14 @@ export default function Dashboard() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                 <Button variant="outline" size="sm" className="text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-600" onClick={handleResetData}>
-                    <RotateCw className="mr-1 md:mr-2 h-4 w-4" /> <span className="hidden md:inline">Reset</span>
+                 <Button variant="outline" size="sm" className="text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-600 p-2 sm:px-3" onClick={handleResetData}>
+                    <RotateCw className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Reset</span>
                   </Button>
               </>
             )}
-             <div className="flex items-center gap-1 md:gap-2 border-l pl-2 md:pl-4">
-                <div className="text-right">
-                    <p className="font-semibold text-sm md:text-base">{currentUser.name}</p>
+             <div className="flex items-center gap-1 sm:gap-2 border-l ml-2 pl-2 sm:ml-4 sm:pl-4">
+                <div className="text-right hidden sm:block">
+                    <p className="font-semibold text-sm">{currentUser.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">{currentUser.role}</p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => router.push('/settings')}>
@@ -876,3 +876,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+    
