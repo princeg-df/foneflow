@@ -32,6 +32,7 @@ export default function OrderTable({ orders, users, cards }: OrderTableProps) {
             <TableHead>Model</TableHead>
             <TableHead>User</TableHead>
             <TableHead>Order Date</TableHead>
+            <TableHead>Delivery Date</TableHead>
             <TableHead className="text-right">Price</TableHead>
             <TableHead className="text-right">Cashback</TableHead>
             <TableHead>Card</TableHead>
@@ -45,7 +46,7 @@ export default function OrderTable({ orders, users, cards }: OrderTableProps) {
         <TableBody>
           {orders.length === 0 ? (
              <TableRow>
-                <TableCell colSpan={11} className="h-24 text-center">
+                <TableCell colSpan={12} className="h-24 text-center">
                 No orders found.
                 </TableCell>
             </TableRow>
@@ -63,6 +64,7 @@ export default function OrderTable({ orders, users, cards }: OrderTableProps) {
                   </TableCell>
                   <TableCell>{userMap.get(order.userId) || 'Unknown'}</TableCell>
                   <TableCell>{format(order.orderDate, 'MMM d, yyyy')}</TableCell>
+                  <TableCell>{order.deliveryDate ? format(order.deliveryDate, 'MMM d, yyyy') : 'N/A'}</TableCell>
                   <TableCell className="text-right">{formatCurrency(order.orderedPrice)}</TableCell>
                   <TableCell className="text-right text-green-600">{formatCurrency(order.cashback)}</TableCell>
                   <TableCell>{cardMap.get(order.cardId) || 'Unknown'}</TableCell>

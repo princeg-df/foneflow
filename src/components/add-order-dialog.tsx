@@ -73,6 +73,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
         model: "",
         variant: "",
         cashback: 0,
+        dealer: "",
     },
   })
   
@@ -184,6 +185,26 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
                 </FormItem>
               )}
             />
+             <FormField control={form.control} name="deliveryDate" render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Delivery Date (Optional)</FormLabel>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <FormControl>
+                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                            {field.value ? (format(field.value, "PPP")) : (<span>Pick a date</span>)}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                        </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                        </PopoverContent>
+                    </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField control={form.control} name="orderedPrice" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Ordered Price</FormLabel>
@@ -196,6 +217,14 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
                 <FormItem>
                   <FormLabel>Cashback</FormLabel>
                   <FormControl><Input type="number" step="0.01" placeholder="e.g., 5000" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField control={form.control} name="dealer" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Dealer (Optional)</FormLabel>
+                  <FormControl><Input placeholder="e.g., Amazon" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
