@@ -394,9 +394,8 @@ export default function Dashboard() {
     const soldOrders = filteredOrders.filter(o => o.sellingPrice);
     const totalInvested = filteredOrders.reduce((sum, o) => sum + o.orderedPrice, 0);
     const totalInvestedAfterCashback = filteredOrders.reduce((sum, o) => sum + (o.orderedPrice - (o.cashback || 0)), 0);
-    const totalFromSoldPhones = soldOrders.reduce((sum, o) => sum + o.sellingPrice!, 0);
     const totalFromTransactions = transactions.reduce((sum, t) => sum + t.amount, 0);
-    const totalReceived = totalFromSoldPhones + totalFromTransactions;
+    const totalReceived = totalFromTransactions;
     
     const profitFromSoldPhones = soldOrders.reduce((sum, o) => sum + (o.sellingPrice! - (o.orderedPrice - (o.cashback || 0))), 0);
 
@@ -512,7 +511,7 @@ export default function Dashboard() {
           <StatCard title="Total Profit" value={formatCurrency(stats.totalProfit)} icon={TrendingUp} className="text-green-600" />
           <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
           <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
-            <CardContent className="pt-6">
+             <CardContent className="pt-6">
                 {isAdmin && (
                     <div className="mb-4">
                         <Select value={cashbackUserFilter} onValueChange={setCashbackUserFilter}>
