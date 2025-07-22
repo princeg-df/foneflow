@@ -1,0 +1,170 @@
+"use client"
+
+import { useState, useMemo } from "react"
+import type { Order } from "@/lib/types"
+import StatCard from "@/components/stat-card"
+import OrderTable from "@/components/order-table"
+import AddOrderDialog from "@/components/add-order-dialog"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard, Users, Filter, XCircle } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import type { DateRange } from "react-day-picker"
+import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
+
+const initialOrders: Order[] = [
+    {
+      id: '1',
+      model: 'iPhone 15 Pro',
+      variant: '256GB Natural Titanium',
+      orderDate: new Date('2023-09-15'),
+      orderedPrice: 1099,
+      cashback: 50,
+      card: 'Amex Gold',
+      deliveryDate: new Date('2023-09-22'),
+      sellingPrice: 1300,
+      dealer: 'Local Shop',
+    },
+    {
+      id: '2',
+      model: 'Samsung S24 Ultra',
+      variant: '512GB Black',
+      orderDate: new Date('2024-01-20'),
+      orderedPrice: 1299,
+      cashback: 100,
+      card: 'Chase Sapphire',
+      deliveryDate: new Date('2024-01-28'),
+      sellingPrice: 1450,
+      dealer: 'Online Marketplace',
+    },
+    {
+      id: '3',
+      model: 'Pixel 8 Pro',
+      variant: '256GB Obsidian',
+      orderDate: new Date('2023-10-10'),
+      orderedPrice: 999,
+      cashback: 0,
+      card: 'Amex Gold',
+      deliveryDate: new Date('2023-10-18'),
+      sellingPrice: 1050,
+      dealer: 'Local Shop',
+    },
+    {
+      id: '4',
+      model: 'iPhone 15',
+      variant: '128GB Blue',
+      orderDate: new Date('2024-02-01'),
+      orderedPrice: 799,
+      cashback: 25,
+      card: 'Citi Double Cash',
+      deliveryDate: new Date('2024-02-08'),
+    },
+];
+
+export default function Dashboard() {
+  const [orders, setOrders] = useState<Order[]>(initialOrders)
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+  const [cardFilter, setCardFilter] = useState<string>("all")
+  const [dealerFilter, setDealerFilter] = useState<string>("all")
+
+  const handleAddOrder = (order: Order) => {
+    setOrders((prev) => [order, ...prev])
+  }
+
+  const uniqueCards = useMemo(() => ["all", ...Array.from(new Set(orders.map(o => o.card)))], [orders])
+  const uniqueDealers = useMemo(() => ["all", ...Array.from(new Set(orders.filter(o => o.dealer).map(o => o.dealer!)))], [orders])
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      const orderDate = order.orderDate;
+      const inDateRange = !dateRange || (!dateRange.from || (isAfter(orderDate, dateRange.from) || isEqual(orderDate, dateRange.from))) && (!dateRange.to || (isBefore(orderDate, dateRange.to) || isEqual(orderDate, dateRange.to)));
+      const cardMatch = cardFilter === "all" || order.card === cardFilter;
+      const dealerMatch = dealerFilter === "all" || order.dealer === dealerFilter;
+      return inDateRange && cardMatch && dealerMatch;
+    });
+  }, [orders, dateRange, cardFilter, dealerFilter]);
+
+  const stats = useMemo(() => {
+    const soldOrders = filteredOrders.filter(o => o.sellingPrice);
+    const totalInvested = filteredOrders.reduce((sum, o) => sum + o.orderedPrice, 0);
+    const totalInvestedAfterCashback = filteredOrders.reduce((sum, o) => sum + (o.orderedPrice - o.cashback), 0);
+    const totalReceived = soldOrders.reduce((sum, o) => sum + o.sellingPrice!, 0);
+    const totalProfit = totalReceived - soldOrders.reduce((sum, o) => sum + (o.orderedPrice - o.cashback), 0);
+    const avgProfit = soldOrders.length > 0 ? totalProfit / soldOrders.length : 0;
+    
+    return {
+      totalPhones: filteredOrders.length,
+      totalInvested,
+      totalInvestedAfterCashback,
+      totalReceived,
+      totalProfit,
+      avgProfit
+    };
+  }, [filteredOrders]);
+
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+
+  const resetFilters = () => {
+    setDateRange(undefined);
+    setCardFilter("all");
+    setDealerFilter("all");
+  };
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatCard title="Total Phones Ordered" value={stats.totalPhones.toString()} icon={Smartphone} />
+        <StatCard title="Total Invested" value={formatCurrency(stats.totalInvested)} icon={DollarSign} description={`After cashback: ${formatCurrency(stats.totalInvestedAfterCashback)}`}/>
+        <StatCard title="Total Received" value={formatCurrency(stats.totalReceived)} icon={TrendingUp} />
+        <StatCard title="Total Profit" value={formatCurrency(stats.totalProfit)} icon={TrendingUp} className="text-green-600" />
+        <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
+      </div>
+
+      <Card className="shadow-lg">
+        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <CardTitle>Orders Overview</CardTitle>
+          <div className="flex flex-col md:flex-row gap-2 items-center">
+            <div className="flex gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button id="date" variant={"outline"} className="w-[260px] justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>) : (format(dateRange.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2}/>
+                    </PopoverContent>
+                </Popover>
+                <Select value={cardFilter} onValueChange={setCardFilter}>
+                    <SelectTrigger className="w-[180px]">
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        <SelectValue placeholder="Filter by card" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {uniqueCards.map(card => <SelectItem key={card} value={card}>{card === "all" ? "All Cards" : card}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                 <Select value={dealerFilter} onValueChange={setDealerFilter}>
+                    <SelectTrigger className="w-[180px]">
+                        <Users className="mr-2 h-4 w-4" />
+                        <SelectValue placeholder="Filter by dealer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {uniqueDealers.map(dealer => <SelectItem key={dealer} value={dealer}>{dealer === "all" ? "All Dealers" : dealer}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <Button variant="ghost" size="icon" onClick={resetFilters}><XCircle className="h-4 w-4" /></Button>
+            </div>
+            <AddOrderDialog onAddOrder={handleAddOrder} />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <OrderTable orders={filteredOrders} />
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
