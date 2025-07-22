@@ -101,8 +101,8 @@ export default function LoginPage() {
           </Form>
         </CardContent>
       </Card>
-      <p className="mt-8 text-sm text-muted-foreground">
-        Default username is 'Prince' and password is 'admin'. You can change the password in settings.
+      <p className="mt-8 text-sm text-muted-foreground text-center">
+        Default username is <span className="font-bold">{storedUsername}</span> and password is 'admin'.<br/> You can change the password in settings.
       </p>
     </div>
   );

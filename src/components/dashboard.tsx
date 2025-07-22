@@ -107,7 +107,7 @@ export default function Dashboard() {
   const [users, setUsers] = useLocalStorage<User[]>("foneflow-users", initialUsers);
   const [cards, setCards] = useLocalStorage<CreditCard[]>("foneflow-cards", initialCards);
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>("foneflow-transactions", initialTransactions);
-  const [isAuthenticated, setIsAuthenticated] = useLocalStorage('foneflow-auth', false);
+  const [isAuthenticated] = useLocalStorage('foneflow-auth', false);
   const [isClient, setIsClient] = useState(false);
 
 
@@ -127,7 +127,8 @@ export default function Dashboard() {
   
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
-
+  
+  const [isLogoutAlertOpen, setLogoutAlertOpen] = useState(false);
   const { toast } = useToast()
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -145,13 +146,14 @@ export default function Dashboard() {
   }, [isAuthenticated, router, isClient]);
 
   const handleAddOrder = (order: Order) => {
-    setOrders((prev) => [order, ...prev])
+    setOrders((prev) => {
+        const existingOrder = prev.find(o => o.id === order.id);
+        if (existingOrder) {
+            return prev.map(o => o.id === order.id ? order : o);
+        }
+        return [order, ...prev];
+    });
   }
-
-  const handleUpdateOrder = (updatedOrder: Order) => {
-    setOrders((prev) => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o))
-    setOrderToEdit(null);
-  };
 
   const handleDeleteOrder = (orderId: string) => {
     setOrders((prev) => prev.filter(o => o.id !== orderId))
@@ -160,12 +162,13 @@ export default function Dashboard() {
   };
   
   const handleAddUser = (user: User) => {
-    setUsers((prev) => [user, ...prev]);
-  };
-
-  const handleUpdateUser = (updatedUser: User) => {
-    setUsers((prev) => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-    setUserToEdit(null);
+    setUsers((prev) => {
+        const existingUser = prev.find(u => u.id === user.id);
+        if (existingUser) {
+            return prev.map(u => u.id === user.id ? user : u);
+        }
+        return [user, ...prev];
+    });
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -182,12 +185,13 @@ export default function Dashboard() {
   };
 
   const handleAddCard = (card: CreditCard) => {
-    setCards((prev) => [card, ...prev]);
-  };
-
-  const handleUpdateCard = (updatedCard: CreditCard) => {
-    setCards((prev) => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
-    setCardToEdit(null);
+    setCards((prev) => {
+        const existingCard = prev.find(c => c.id === card.id);
+        if (existingCard) {
+            return prev.map(c => c.id === card.id ? card : c);
+        }
+        return [card, ...prev];
+    });
   };
 
   const handleDeleteCard = (cardId: string) => {
@@ -203,20 +207,20 @@ export default function Dashboard() {
   };
 
   const handleAddTransaction = (transaction: Transaction) => {
-    setTransactions((prev) => [transaction, ...prev])
+    setTransactions((prev) => {
+      const existing = prev.find(t => t.id === transaction.id);
+      if (existing) {
+        return prev.map(t => t.id === transaction.id ? transaction : t);
+      }
+      return [transaction, ...prev];
+    });
   }
-
-  const handleUpdateTransaction = (updatedTransaction: Transaction) => {
-    setTransactions((prev) => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
-    setTransactionToEdit(null);
-  };
 
   const handleDeleteTransaction = (transactionId: string) => {
     setTransactions((prev) => prev.filter(t => t.id !== transactionId));
     setTransactionToDelete(null);
     toast({ title: "Success!", description: "Transaction deleted successfully." });
   };
-
 
   const handleExport = () => {
     const data = {
@@ -294,23 +298,26 @@ export default function Dashboard() {
   };
   
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    router.replace('/login');
+    setLogoutAlertOpen(true);
   };
+  
+  const confirmLogout = () => {
+    localStorage.removeItem('foneflow-auth');
+    router.replace('/login');
+  }
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+  const formatCurrencyPdf = (amount: number) => `Rs. ${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)}`;
 
   const handleExportPdf = () => {
     const doc = new jsPDF();
     const userMap = new Map(users.map(u => [u.id, u.name]));
-    const cardMap = new Map(cards.map(c => [c.id, `${c.name} (...${c.cardNumber.slice(-4)})`]));
-
+    
     doc.setFontSize(20);
     doc.text("FoneFlow Report", 14, 22);
     doc.setFontSize(11);
     doc.text(`Report generated on: ${format(new Date(), "PPP")}`, 14, 30);
     
-    // Orders Table
     autoTable(doc, {
       startY: 40,
       head: [['Model', 'User', 'Order Date', 'Price', 'Cashback', 'Net Cost', 'Selling Price', 'Profit']],
@@ -321,35 +328,37 @@ export default function Dashboard() {
           `${o.model}\n${o.variant}`,
           userMap.get(o.userId) || 'N/A',
           format(o.orderDate, "P"),
-          formatCurrency(o.orderedPrice),
-          formatCurrency(o.cashback),
-          formatCurrency(netCost),
-          o.sellingPrice ? formatCurrency(o.sellingPrice) : 'N/A',
-          o.sellingPrice ? formatCurrency(profit) : 'N/A',
+          formatCurrencyPdf(o.orderedPrice),
+          formatCurrencyPdf(o.cashback),
+          formatCurrencyPdf(netCost),
+          o.sellingPrice ? formatCurrencyPdf(o.sellingPrice) : 'N/A',
+          o.sellingPrice ? formatCurrencyPdf(profit) : 'N/A',
         ];
       }),
       headStyles: { fillColor: [33, 150, 243] },
       didDrawPage: (data) => {
-        doc.setFontSize(16);
-        doc.text("Orders", 14, data.cursor!.y - 10);
+         if (data.pageNumber === 1) {
+            doc.setFontSize(16);
+            doc.text("Orders", 14, 38);
+         }
       }
     });
 
-    // Transactions Table
-    const lastTableY = (doc as any).lastAutoTable.finalY || 100;
-     autoTable(doc, {
+    const lastTableY = (doc as any).lastAutoTable.finalY || 40;
+    
+    autoTable(doc, {
       startY: lastTableY + 20,
       head: [['Date', 'Dealer', 'Amount', 'Description']],
       body: transactions.map(t => [
         format(t.date, "P"),
         t.dealer,
-        formatCurrency(t.amount),
+        formatCurrencyPdf(t.amount),
         t.description || 'N/A',
       ]),
       headStyles: { fillColor: [33, 150, 243] },
        didDrawPage: (data) => {
         doc.setFontSize(16);
-        doc.text("Transactions", 14, data.cursor!.y - 10);
+        doc.text("Transactions", 14, lastTableY + 18);
       }
     });
 
@@ -389,7 +398,11 @@ export default function Dashboard() {
     const totalFromSoldPhones = soldOrders.reduce((sum, o) => sum + o.sellingPrice!, 0);
     const totalFromTransactions = transactions.reduce((sum, t) => sum + t.amount, 0);
     const totalReceived = totalFromSoldPhones + totalFromTransactions;
-    const totalProfit = totalReceived - soldOrders.reduce((sum, o) => sum + (o.orderedPrice - o.cashback), 0);
+    
+    const profitFromSoldPhones = soldOrders.reduce((sum, o) => sum + (o.sellingPrice! - (o.orderedPrice - o.cashback)), 0);
+
+    const totalProfit = profitFromSoldPhones;
+    
     const avgProfit = soldOrders.length > 0 ? totalProfit / soldOrders.length : 0;
     
     return {
@@ -551,7 +564,7 @@ export default function Dashboard() {
         <AddOrderDialog
           isOpen={!!orderToEdit}
           onOpenChange={(isOpen) => !isOpen && setOrderToEdit(null)}
-          onAddOrder={handleUpdateOrder}
+          onAddOrder={handleAddOrder}
           users={users}
           cards={cards}
           order={orderToEdit}
@@ -569,7 +582,7 @@ export default function Dashboard() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleDeleteOrder(orderToDelete.id)}>Delete</AlertDialogAction>
+                <AlertDialogAction onClick={() => handleDeleteOrder(orderToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
          </AlertDialog>
@@ -579,7 +592,7 @@ export default function Dashboard() {
         <AddTransactionDialog
           isOpen={!!transactionToEdit}
           onOpenChange={(isOpen) => !isOpen && setTransactionToEdit(null)}
-          onAddTransaction={handleUpdateTransaction}
+          onAddTransaction={handleAddTransaction}
           transaction={transactionToEdit}
         />
       )}
@@ -595,7 +608,7 @@ export default function Dashboard() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setTransactionToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleDeleteTransaction(transactionToDelete.id)}>Delete</AlertDialogAction>
+                <AlertDialogAction onClick={() => handleDeleteTransaction(transactionToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
          </AlertDialog>
@@ -605,7 +618,7 @@ export default function Dashboard() {
         <AddUserDialog
           isOpen={!!userToEdit}
           onOpenChange={(isOpen) => !isOpen && setUserToEdit(null)}
-          onAddUser={handleUpdateUser}
+          onAddUser={handleAddUser}
           user={userToEdit}
         />
       )}
@@ -621,7 +634,7 @@ export default function Dashboard() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleDeleteUser(userToDelete.id)}>Delete</AlertDialogAction>
+                <AlertDialogAction onClick={() => handleDeleteUser(userToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
          </AlertDialog>
@@ -631,7 +644,7 @@ export default function Dashboard() {
         <AddCardDialog
           isOpen={!!cardToEdit}
           onOpenChange={(isOpen) => !isOpen && setCardToEdit(null)}
-          onAddCard={handleUpdateCard}
+          onAddCard={handleAddCard}
           users={users}
           card={cardToEdit}
         />
@@ -648,7 +661,7 @@ export default function Dashboard() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setCardToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleDeleteCard(cardToDelete.id)}>Delete</AlertDialogAction>
+                <AlertDialogAction onClick={() => handleDeleteCard(cardToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
          </AlertDialog>
@@ -668,6 +681,22 @@ export default function Dashboard() {
             </AlertDialogFooter>
         </AlertDialogContent>
        </AlertDialog>
+
+      <AlertDialog open={isLogoutAlertOpen} onOpenChange={setLogoutAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
+            <AlertDialogDescription>
+                You will be returned to the login screen.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmLogout}>Log Out</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
        <footer className="container py-4 text-center text-sm text-muted-foreground">
          <p>Built for mobile resellers. FoneFlow 2024.</p>
        </footer>
