@@ -501,10 +501,7 @@ export default function Dashboard() {
           <StatCard title="Total Profit" value={formatCurrency(stats.totalProfit)} icon={TrendingUp} className="text-green-600" />
           <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
           <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
-            <CardHeader>
-                <CardTitle className="text-sm font-medium">Total Cashback</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
                 {isAdmin && (
                     <div className="mb-4">
                         <Select value={cashbackUserFilter} onValueChange={setCashbackUserFilter}>
@@ -519,6 +516,7 @@ export default function Dashboard() {
                         </Select>
                     </div>
                 )}
+                <div className="text-sm font-medium">Total Cashback</div>
                 <div className="text-2xl font-bold">{formatCurrency(userCashback)}</div>
                 <p className="text-xs text-muted-foreground">
                     {cashbackUserFilter === 'all' ? 'Across all users' : `For ${users.find(u => u.id === cashbackUserFilter)?.name || 'selected user'}`}
@@ -531,15 +529,15 @@ export default function Dashboard() {
            <CardHeader>
             <div className="flex items-center justify-between flex-wrap gap-4">
               <CardTitle>FoneFlow Hub</CardTitle>
+              <div className="flex items-center gap-2 flex-wrap">
+                <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
+                {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
+                <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
+                <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 flex-wrap mb-4">
-              <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
-              {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
-              <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
-              <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
-            </div>
             <Tabs defaultValue="orders">
               <TabsList>
                   <TabsTrigger value="orders">Orders</TabsTrigger>
@@ -775,3 +773,4 @@ export default function Dashboard() {
       </footer>
     </div>
   )
+}
