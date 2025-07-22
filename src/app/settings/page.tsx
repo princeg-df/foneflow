@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, User } from "lucide-react";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -21,6 +21,7 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsPage() {
   const [storedPassword, setStoredPassword] = useLocalStorage('foneflow-password', 'admin');
+  const [storedUsername, setStoredUsername] = useLocalStorage('foneflow-username', 'Prince');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -51,7 +52,7 @@ export default function SettingsPage() {
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader>
           <CardTitle className="text-2xl">Settings</CardTitle>
-          <CardDescription>Change your application password here.</CardDescription>
+          <CardDescription>Change your application password here. Your username is <span className="font-semibold text-primary">{storedUsername}</span>.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

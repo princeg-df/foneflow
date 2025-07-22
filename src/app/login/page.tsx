@@ -11,9 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, LogIn } from "lucide-react";
+import { Smartphone, LogIn, User } from "lucide-react";
 
 const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -21,13 +22,14 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const [isAuthenticated, setIsAuthenticated] = useLocalStorage('foneflow-auth', false);
-  const [password, setPassword] = useLocalStorage('foneflow-password', 'admin'); // Default password
+  const [storedUsername, setStoredUsername] = useLocalStorage('foneflow-username', 'Prince');
+  const [storedPassword, setStoredPassword] = useLocalStorage('foneflow-password', 'admin'); // Default password
   const router = useRouter();
   const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { password: "" },
+    defaultValues: { username: "", password: "" },
   });
 
   useEffect(() => {
@@ -37,14 +39,14 @@ export default function LoginPage() {
   }, [isAuthenticated, router]);
 
   function onSubmit(data: LoginFormValues) {
-    if (data.password === password) {
+    if (data.username === storedUsername && data.password === storedPassword) {
       setIsAuthenticated(true);
       toast({ title: "Success", description: "Logged in successfully." });
       router.push('/');
     } else {
       toast({
         title: "Error",
-        description: "Incorrect password. Please try again.",
+        description: "Incorrect username or password. Please try again.",
         variant: "destructive",
       });
     }
@@ -67,6 +69,19 @@ export default function LoginPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter your username" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="password"
                 render={({ field }) => (
                   <FormItem>
@@ -87,7 +102,7 @@ export default function LoginPage() {
         </CardContent>
       </Card>
       <p className="mt-8 text-sm text-muted-foreground">
-        Default password is 'admin'. You can change it in the settings after logging in.
+        Default username is 'Prince' and password is 'admin'. You can change the password in settings.
       </p>
     </div>
   );
