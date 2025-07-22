@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
@@ -194,7 +195,7 @@ export default function Dashboard() {
     toast({ title: "Success!", description: "Transaction deleted successfully." });
   };
 
-  const handleExport = () => {
+  const handleExportJson = () => {
     const data = {
       users,
       cards,
@@ -438,26 +439,57 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between mx-auto">
-          <div className="flex items-center">
+        <div className="container flex h-16 items-center justify-between mx-auto gap-4">
+          <div className="flex items-center gap-4">
             <Smartphone className="h-6 w-6 mr-2 text-primary"/>
             <h1 className="text-2xl font-bold font-headline text-primary">
               FoneFlow
             </h1>
           </div>
-          <div className="flex items-center gap-4">
-             <div className="text-right">
-                <p className="font-semibold">{currentUser.name}</p>
-                <p className="text-xs text-muted-foreground">{currentUser.role === 'admin' ? 'Administrator' : 'User'}</p>
+          <div className="flex-1" />
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+                <Button variant="outline" size="sm" onClick={handleImportClick}>
+                  <Upload className="mr-2 h-4 w-4" /> Import
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Download className="mr-2 h-4 w-4" /> Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={handleExportJson}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportPdf}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export PDF
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                 <Button variant="outline" size="sm" className="text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-600" onClick={handleResetData}>
+                    <RotateCw className="mr-2 h-4 w-4" /> Reset Data
+                  </Button>
+              </>
+            )}
+             <div className="flex items-center gap-2 border-l pl-4">
+                <div className="text-right">
+                    <p className="font-semibold">{currentUser.name}</p>
+                    <p className="text-xs text-muted-foreground">{currentUser.role === 'admin' ? 'Administrator' : 'User'}</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => router.push('/settings')}>
+                <Settings className="h-5 w-5" />
+                <span className="sr-only">Settings</span>
+                </Button>
+                <Button variant="ghost" size="icon" onClick={handleLogout}>
+                <LogOut className="h-5 w-5" />
+                <span className="sr-only">Logout</span>
+                </Button>
              </div>
-            <Button variant="ghost" size="icon" onClick={() => router.push('/settings')}>
-              <Settings className="h-5 w-5" />
-              <span className="sr-only">Settings</span>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
-              <span className="sr-only">Logout</span>
-            </Button>
           </div>
         </div>
       </header>
@@ -474,7 +506,7 @@ export default function Dashboard() {
                  {isAdmin && <Select value={cashbackUserFilter} onValueChange={setCashbackUserFilter}>
                       <SelectTrigger className="w-full sm:w-auto min-w-[120px] h-8 -my-2 text-xs">
                           <Users className="mr-2 h-3 w-3" />
-                          <SelectValue placeholder="Filter by user" />
+                          <SelectValue placeholder="All Users" />
                       </SelectTrigger>
                       <SelectContent>
                           <SelectItem value="all">All Users</SelectItem>
@@ -493,32 +525,17 @@ export default function Dashboard() {
 
         <Card className="shadow-lg">
            <CardHeader>
-            <CardTitle>FoneFlow Hub</CardTitle>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <CardTitle>FoneFlow Hub</CardTitle>
+               <div className="flex items-center gap-2 flex-wrap">
+                <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
+                {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
+                <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
+                <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 flex-wrap mb-4 border-b pb-4">
-              <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
-              {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
-              <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
-              <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
-              {isAdmin && (
-                <>
-                  <Button variant="outline" onClick={handleResetData}>
-                    <RotateCw className="mr-2 h-4 w-4" /> Reset Data
-                  </Button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
-                  <Button variant="outline" onClick={handleImportClick}>
-                    <Upload className="mr-2 h-4 w-4" /> Import
-                  </Button>
-                  <Button variant="outline" onClick={handleExport}>
-                    <Download className="mr-2 h-4 w-4" /> Export JSON
-                  </Button>
-                </>
-              )}
-              <Button variant="outline" onClick={handleExportPdf}>
-                <FileText className="mr-2 h-4 w-4" /> Export PDF
-              </Button>
-            </div>
             <Tabs defaultValue="orders">
               <TabsList>
                   <TabsTrigger value="orders">Orders</TabsTrigger>
