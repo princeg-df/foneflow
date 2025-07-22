@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw, PlusCircle, UserPlus } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw, PlusCircle, UserPlus, AlertCircle } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
 import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
@@ -410,12 +410,14 @@ export default function Dashboard() {
     const totalProfit = profitFromSoldPhones;
     
     const avgProfit = soldOrders.length > 0 ? totalProfit / soldOrders.length : 0;
+    const totalPending = totalInvestedAfterCashback - totalReceived;
     
     return {
       totalPhones: filteredOrders.length,
       totalInvested,
       totalInvestedAfterCashback,
       totalReceived,
+      totalPending,
       totalProfit,
       avgProfit
     };
@@ -530,10 +532,11 @@ export default function Dashboard() {
         </div>
       </header>
       <main className="flex-1 flex flex-col gap-8 p-4 md:p-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 animate-fade-in-up">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 animate-fade-in-up">
           <StatCard title="Total Phones Ordered" value={stats.totalPhones.toString()} icon={Smartphone} />
           <StatCard title="Total Invested" value={formatCurrency(stats.totalInvested)} icon={DollarSign} description={`After cashback: ${formatCurrency(stats.totalInvestedAfterCashback)}`}/>
           <StatCard title="Total Received" value={formatCurrency(stats.totalReceived)} icon={TrendingUp} />
+          <StatCard title="Total Pending" value={formatCurrency(stats.totalPending)} icon={AlertCircle} className={stats.totalPending > 0 ? "text-orange-600" : ""} />
           <StatCard title="Total Profit" value={formatCurrency(stats.totalProfit)} icon={TrendingUp} className="text-green-600" />
           <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
           <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
@@ -868,3 +871,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+    
