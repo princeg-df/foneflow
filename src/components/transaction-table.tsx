@@ -20,6 +20,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -38,6 +39,7 @@ export default function TransactionTable({ transactions, onEditTransaction, onDe
             <TableHead>Date</TableHead>
             <TableHead>Dealer</TableHead>
             <TableHead>Description</TableHead>
+            <TableHead>Payment Mode</TableHead>
             <TableHead className="text-right">Amount</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -45,7 +47,7 @@ export default function TransactionTable({ transactions, onEditTransaction, onDe
         <TableBody>
           {transactions.length === 0 ? (
              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                 No transactions found.
                 </TableCell>
             </TableRow>
@@ -55,6 +57,12 @@ export default function TransactionTable({ transactions, onEditTransaction, onDe
                   <TableCell>{format(new Date(transaction.date), 'MMM d, yyyy')}</TableCell>
                   <TableCell className="font-medium">{transaction.dealer}</TableCell>
                   <TableCell className="text-muted-foreground">{transaction.description || 'N/A'}</TableCell>
+                  <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                          {transaction.paymentMode}
+                          {transaction.onlinePaymentType && ` (${transaction.onlinePaymentType.replace('_', ' ')})`}
+                      </Badge>
+                  </TableCell>
                   <TableCell className="text-right font-medium text-green-600">{formatCurrency(transaction.amount)}</TableCell>
                    <TableCell className="text-right">
                      <DropdownMenu>

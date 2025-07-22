@@ -13,7 +13,7 @@ import AddUserDialog from "@/components/add-user-dialog"
 import AddCardDialog from "@/components/add-card-dialog"
 import AddTransactionDialog from "@/components/add-transaction-dialog"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -36,6 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 const initialUsers: User[] = []
 
@@ -419,6 +420,16 @@ export default function Dashboard() {
       : orders.filter(o => o.userId === cashbackUserFilter);
     return ordersToConsider.reduce((sum, o) => sum + (o.cashback || 0), 0);
   }, [orders, cashbackUserFilter]);
+  
+  const creditCardBills = useMemo(() => {
+    const bills = new Map<string, number>();
+    cards.forEach(card => {
+        const cardOrders = orders.filter(o => o.cardId === card.id);
+        const totalSpent = cardOrders.reduce((sum, o) => sum + o.orderedPrice, 0);
+        bills.set(card.id, totalSpent);
+    })
+    return bills;
+  }, [orders, cards]);
 
 
   const resetFilters = () => {
@@ -527,14 +538,14 @@ export default function Dashboard() {
 
         <Card className="shadow-lg">
            <CardHeader>
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <CardTitle>FoneFlow Hub</CardTitle>
-              <div className="flex items-center gap-2 flex-wrap">
-                <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
-                {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
-                <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
-                <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
-              </div>
+             <div className="flex items-center justify-between flex-wrap gap-4">
+                <CardTitle>FoneFlow Hub</CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
+                    {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
+                    <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
+                    <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
+                </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -542,8 +553,8 @@ export default function Dashboard() {
               <TabsList>
                   <TabsTrigger value="orders">Orders</TabsTrigger>
                   {isAdmin && <TabsTrigger value="transactions">Transactions</TabsTrigger>}
-                  {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
                   <TabsTrigger value="cards">Credit Cards</TabsTrigger>
+                  {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
               </TabsList>
               <TabsContent value="orders">
                 <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap my-4">
@@ -604,12 +615,62 @@ export default function Dashboard() {
                     onDeleteTransaction={setTransactionToDelete} 
                   />
               </TabsContent>}
+               <TabsContent value="cards">
+                    <Tabs defaultValue="bills" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="bills">Card Bills</TabsTrigger>
+                            <TabsTrigger value="manage">Manage Cards</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="bills">
+                           <Card>
+                             <CardHeader>
+                                <CardTitle>Credit Card Bills</CardTitle>
+                                <CardDescription>Total amount spent on each credit card for orders.</CardDescription>
+                             </CardHeader>
+                             <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Card</TableHead>
+                                            <TableHead>User</TableHead>
+                                            <TableHead className="text-right">Total Bill</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {cardsToDisplay.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="h-24 text-center">No cards found.</TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            cardsToDisplay.map(card => (
+                                                <TableRow key={card.id}>
+                                                    <TableCell>{card.name} (....{card.cardNumber.slice(-4)})</TableCell>
+                                                    <TableCell>{users.find(u => u.id === card.userId)?.name || 'N/A'}</TableCell>
+                                                    <TableCell className="text-right font-medium">{formatCurrency(creditCardBills.get(card.id) || 0)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                             </CardContent>
+                           </Card>
+                        </TabsContent>
+                        <TabsContent value="manage">
+                           <Card>
+                                <CardHeader>
+                                    <CardTitle>Manage Credit Cards</CardTitle>
+                                    <CardDescription>Add, edit, or delete your credit cards.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <CardTable cards={cardsToDisplay} users={users} onEditCard={setCardToEdit} onDeleteCard={setCardToDelete} />
+                                </CardContent>
+                           </Card>
+                        </TabsContent>
+                    </Tabs>
+              </TabsContent>
               {isAdmin && <TabsContent value="users">
                   <UserTable users={users} onEditUser={setUserToEdit} onDeleteUser={setUserToDelete} currentUser={currentUser} />
               </TabsContent>}
-              <TabsContent value="cards">
-                  <CardTable cards={cardsToDisplay} users={users} onEditCard={setCardToEdit} onDeleteCard={setCardToDelete} />
-              </TabsContent>
             </Tabs>
           </CardContent>
         </Card>

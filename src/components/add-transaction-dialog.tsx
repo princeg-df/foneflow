@@ -34,13 +34,24 @@ import {
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 const transactionSchema = z.object({
   date: z.date({ required_error: "Transaction date is required." }),
   amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
   dealer: z.string().min(2, "Dealer name is required"),
   description: z.string().optional(),
-})
+  paymentMode: z.enum(["cash", "online"], { required_error: "Payment mode is required." }),
+  onlinePaymentType: z.enum(["upi", "bank_transfer"]).optional(),
+}).refine(data => {
+    if (data.paymentMode === 'online') {
+        return !!data.onlinePaymentType;
+    }
+    return true;
+}, {
+    message: "Online payment type is required for online payments.",
+    path: ["onlinePaymentType"],
+});
 
 type TransactionFormValues = z.infer<typeof transactionSchema>
 
@@ -64,7 +75,8 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
     if (isEditMode && transaction) {
        return { 
         ...transaction, 
-        description: transaction.description ?? "" 
+        description: transaction.description ?? "" ,
+        onlinePaymentType: transaction.onlinePaymentType ?? undefined,
       }
     }
     return {
@@ -72,6 +84,8 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
       amount: undefined,
       dealer: "",
       description: "",
+      paymentMode: 'cash' as const,
+      onlinePaymentType: undefined,
     }
   }
 
@@ -79,6 +93,8 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
     resolver: zodResolver(transactionSchema),
     defaultValues: getInitialValues(),
   })
+  
+  const paymentMode = form.watch("paymentMode");
 
   useEffect(() => {
     form.reset(getInitialValues());
@@ -90,6 +106,7 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
       ...data,
       id: isEditMode && transaction ? transaction.id : `txn_${new Date().getTime()}`,
       description: data.description,
+      onlinePaymentType: data.paymentMode === 'online' ? data.onlinePaymentType : undefined,
     }
     onAddTransaction(newTransaction)
     toast({
@@ -162,6 +179,68 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="paymentMode"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Payment Mode</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="cash" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Cash</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="online" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Online</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {paymentMode === 'online' && (
+               <FormField
+                  control={form.control}
+                  name="onlinePaymentType"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Online Payment Type</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex space-x-4"
+                        >
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="upi" />
+                            </FormControl>
+                            <FormLabel className="font-normal">UPI</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="bank_transfer" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Bank Transfer</FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            )}
             <FormField control={form.control} name="description" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Description (Optional)</FormLabel>

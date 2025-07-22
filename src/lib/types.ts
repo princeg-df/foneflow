@@ -33,4 +33,6 @@ export type Transaction = {
     amount: number;
     dealer: string;
     description?: string;
+    paymentMode: 'cash' | 'online';
+    onlinePaymentType?: 'upi' | 'bank_transfer';
 }
