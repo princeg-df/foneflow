@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw, PlusCircle } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw, PlusCircle, UserPlus } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
 import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
@@ -330,7 +330,7 @@ export default function Dashboard() {
           o.sellingPrice ? 'Sold' : 'In Stock'
         ];
       }),
-      headStyles: { fillColor: [33, 150, 243] },
+      headStyles: { fillColor: [0, 128, 128] }, // Teal color
       didDrawPage: (data) => {
          if (data.pageNumber === 1) {
             doc.setFontSize(16);
@@ -352,7 +352,7 @@ export default function Dashboard() {
         `${t.paymentMode}${t.onlinePaymentType ? ` (${t.onlinePaymentType.replace('_', ' ')})` : ''}`,
         t.description || 'N/A',
       ]),
-      headStyles: { fillColor: [33, 150, 243] },
+      headStyles: { fillColor: [0, 128, 128] }, // Teal color
        didDrawPage: (data) => {
         doc.setFontSize(16);
         doc.text("Transactions", 14, lastTableY + 18);
@@ -422,11 +422,18 @@ export default function Dashboard() {
   }, [filteredOrders, transactions]);
   
   const userCashback = useMemo(() => {
-    const ordersToConsider = cashbackUserFilter === 'all' 
-      ? orders 
-      : orders.filter(o => o.userId === cashbackUserFilter);
+    let ordersToConsider: Order[];
+  
+    if (isAdmin) {
+      ordersToConsider = cashbackUserFilter === 'all' 
+        ? orders 
+        : orders.filter(o => o.userId === cashbackUserFilter);
+    } else {
+      ordersToConsider = orders.filter(o => o.userId === currentUser?.id);
+    }
+    
     return ordersToConsider.reduce((sum, o) => sum + (o.cashback || 0), 0);
-  }, [orders, cashbackUserFilter]);
+  }, [orders, cashbackUserFilter, isAdmin, currentUser]);
   
   const creditCardBills = useMemo(() => {
     const bills = new Map<string, number>();
@@ -523,7 +530,7 @@ export default function Dashboard() {
                 {isAdmin && (
                     <div className="mb-4">
                         <Select value={cashbackUserFilter} onValueChange={setCashbackUserFilter}>
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger className="w-full h-8 text-xs">
                                 <Users className="mr-2 h-3 w-3" />
                                 <SelectValue placeholder="All Users" />
                             </SelectTrigger>
@@ -537,7 +544,11 @@ export default function Dashboard() {
                 <div className="text-sm font-medium">Total Cashback</div>
                 <div className="text-2xl font-bold">{formatCurrency(userCashback)}</div>
                 <p className="text-xs text-muted-foreground">
-                    {cashbackUserFilter === 'all' ? 'Across all users' : `For ${users.find(u => u.id === cashbackUserFilter)?.name || 'selected user'}`}
+                  {
+                    isAdmin 
+                    ? (cashbackUserFilter === 'all' ? 'Across all users' : `For ${users.find(u => u.id === cashbackUserFilter)?.name || 'selected user'}`)
+                    : `For ${currentUser.name}`
+                  }
                 </p>
             </CardContent>
           </Card>
@@ -816,7 +827,7 @@ export default function Dashboard() {
               </AlertDialogHeader>
               <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmResetData} variant="outline">Reset Data</AlertDialogAction>
+              <AlertDialogAction onClick={confirmResetData} variant="destructive">Reset Data</AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
