@@ -15,11 +15,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
 import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,6 +100,7 @@ export default function Dashboard() {
   const [orders, setOrders] = useLocalStorage<Order[]>("foneflow-orders", initialOrders)
   const [users, setUsers] = useLocalStorage<User[]>("foneflow-users", initialUsers);
   const [cards, setCards] = useLocalStorage<CreditCard[]>("foneflow-cards", initialCards);
+  const [_, setIsAuthenticated] = useLocalStorage('foneflow-auth', false);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [userFilter, setUserFilter] = useState<string>("all")
@@ -115,6 +117,7 @@ export default function Dashboard() {
   const [cardToDelete, setCardToDelete] = useState<CreditCard | null>(null);
 
   const { toast } = useToast()
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isImportAlertOpen, setImportAlertOpen] = useState(false)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
@@ -139,7 +142,7 @@ export default function Dashboard() {
   };
 
   const handleUpdateUser = (updatedUser: User) => {
-    setUsers((prev) => prev.map(u => u.id === updatedUser.id ? updatedUser : o));
+    setUsers((prev) => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
     setUserToEdit(null);
   };
 
@@ -161,7 +164,7 @@ export default function Dashboard() {
   };
 
   const handleUpdateCard = (updatedCard: CreditCard) => {
-    setCards((prev) => prev.map(c => c.id === updatedCard.id ? updatedCard : o));
+    setCards((prev) => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
     setCardToEdit(null);
   };
 
@@ -245,6 +248,11 @@ export default function Dashboard() {
     };
     reader.readAsText(pendingFile);
   };
+  
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    router.replace('/login');
+  };
 
 
   const uniqueDealers = useMemo(() => ["all", ...Array.from(new Set(orders.filter(o => o.dealer).map(o => o.dealer!)))], [orders])
@@ -299,7 +307,27 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 min-h-screen bg-background text-foreground p-4 md:p-8">
+      <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-4 md:-mx-8 px-4 md:px-8">
+        <div className="container flex h-14 items-center justify-between mx-auto px-0">
+          <div className="flex items-center">
+            <Smartphone className="h-6 w-6 mr-2 text-primary"/>
+            <h1 className="text-2xl font-bold font-headline text-primary">
+              FoneFlow
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => router.push('/settings')}>
+              <Settings className="h-5 w-5" />
+              <span className="sr-only">Settings</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="h-5 w-5" />
+              <span className="sr-only">Logout</span>
+            </Button>
+          </div>
+        </div>
+      </header>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard title="Total Phones Ordered" value={stats.totalPhones.toString()} icon={Smartphone} />
         <StatCard title="Total Invested" value={formatCurrency(stats.totalInvested)} icon={DollarSign} description={`After cashback: ${formatCurrency(stats.totalInvestedAfterCashback)}`}/>
@@ -492,6 +520,9 @@ export default function Dashboard() {
             </AlertDialogFooter>
         </AlertDialogContent>
        </AlertDialog>
+       <footer className="container py-4 text-center text-sm text-muted-foreground">
+         <p>Built for mobile resellers. FoneFlow 2024.</p>
+       </footer>
     </div>
   )
 }
