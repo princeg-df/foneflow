@@ -66,7 +66,7 @@ export default function OrderTable({ orders, users, cards, onEditOrder, onDelete
             </TableRow>
           ) : (
             orders.map((order) => {
-              const netCost = order.orderedPrice - order.cashback
+              const netCost = order.orderedPrice - (order.cashback || 0)
               const profit = order.sellingPrice ? order.sellingPrice - netCost : undefined
               const profitPercentage = profit !== undefined && netCost > 0 ? (profit / netCost) * 100 : undefined
 
@@ -77,12 +77,12 @@ export default function OrderTable({ orders, users, cards, onEditOrder, onDelete
                     <div className="text-xs text-muted-foreground">{order.variant}</div>
                   </TableCell>
                   <TableCell>{userMap.get(order.userId) || 'Unknown'}</TableCell>
-                  <TableCell>{format(order.orderDate, 'MMM d, yyyy')}</TableCell>
-                  <TableCell>{order.deliveryDate ? format(order.deliveryDate, 'MMM d, yyyy') : 'N/A'}</TableCell>
+                  <TableCell>{format(new Date(order.orderDate), 'MMM d, yyyy')}</TableCell>
+                  <TableCell>{order.deliveryDate ? format(new Date(order.deliveryDate), 'MMM d, yyyy') : 'N/A'}</TableCell>
                   <TableCell className="text-right">{formatCurrency(order.orderedPrice)}</TableCell>
-                  <TableCell className="text-right text-green-600">{formatCurrency(order.cashback)}</TableCell>
+                  <TableCell className="text-right text-green-600">{formatCurrency(order.cashback || 0)}</TableCell>
                   <TableCell>{cardMap.get(order.cardId) || 'Unknown'}</TableCell>
-                  <TableCell className="text-right">{order.sellingPrice ? formatCurrency(order.sellingPrice) : 'N/A'}</TableCell>
+                  <TableCell className="text-right">{order.sellingPrice ? formatCurrency(order.selling.Price) : 'N/A'}</TableCell>
                   <TableCell>{order.dealer || 'N/A'}</TableCell>
                   <TableCell className={`text-right font-medium ${profit !== undefined && profit > 0 ? 'text-green-600' : 'text-red-500'}`}>
                     {profit !== undefined ? formatCurrency(profit) : 'N/A'}

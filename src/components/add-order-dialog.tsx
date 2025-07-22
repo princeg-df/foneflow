@@ -80,6 +80,8 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
     resolver: zodResolver(orderSchema),
     defaultValues: isEditMode ? {
       ...order,
+      orderDate: new Date(order.orderDate),
+      deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined,
       sellingPrice: order.sellingPrice ?? undefined,
       dealer: order.dealer ?? undefined,
       cashback: order.cashback ?? 0,
@@ -95,6 +97,8 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
     if (order) {
       form.reset({
         ...order,
+        orderDate: new Date(order.orderDate),
+        deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined,
         sellingPrice: order.sellingPrice ?? undefined,
         dealer: order.dealer ?? undefined,
         cashback: order.cashback ?? 0,
@@ -299,5 +303,3 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
     </Dialog>
   )
 }
-
-    

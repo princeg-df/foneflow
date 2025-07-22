@@ -52,7 +52,7 @@ export default function TransactionTable({ transactions, onEditTransaction, onDe
           ) : (
             transactions.map((transaction) => (
                 <TableRow key={transaction.id}>
-                  <TableCell>{format(transaction.date, 'MMM d, yyyy')}</TableCell>
+                  <TableCell>{format(new Date(transaction.date), 'MMM d, yyyy')}</TableCell>
                   <TableCell className="font-medium">{transaction.dealer}</TableCell>
                   <TableCell className="text-muted-foreground">{transaction.description || 'N/A'}</TableCell>
                   <TableCell className="text-right font-medium text-green-600">{formatCurrency(transaction.amount)}</TableCell>

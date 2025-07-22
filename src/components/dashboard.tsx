@@ -37,65 +37,65 @@ import {
 } from "@/components/ui/alert-dialog"
 
 const initialUsers: User[] = [
-    { id: 'user1', name: 'Alice' },
-    { id: 'user2', name: 'Bob' },
+    { id: 'user_1', name: 'Alice' },
+    { id: 'user_2', name: 'Bob' },
 ]
 
 const initialCards: CreditCard[] = [
-    { id: 'card1', name: 'Amex Gold', cardNumber: '1111222233334444', userId: 'user1' },
-    { id: 'card2', name: 'Chase Sapphire', cardNumber: '5555666677778888', userId: 'user1' },
-    { id: 'card3', name: 'Citi Double Cash', cardNumber: '9999000011112222', userId: 'user2' },
+    { id: 'card_1', name: 'Amex Gold', cardNumber: '1111222233334444', userId: 'user_1' },
+    { id: 'card_2', name: 'Chase Sapphire', cardNumber: '5555666677778888', userId: 'user_1' },
+    { id: 'card_3', name: 'Citi Double Cash', cardNumber: '9999000011112222', userId: 'user_2' },
 ]
 
 const initialOrders: Order[] = [
     {
-      id: '1',
+      id: 'order_1',
       model: 'iPhone 15 Pro',
       variant: '256GB Natural Titanium',
       orderDate: new Date('2023-09-15'),
       orderedPrice: 99900,
       cashback: 5000,
-      cardId: 'card1',
-      userId: 'user1',
+      cardId: 'card_1',
+      userId: 'user_1',
       deliveryDate: new Date('2023-09-22'),
       sellingPrice: 110000,
       dealer: 'Local Shop',
     },
     {
-      id: '2',
+      id: 'order_2',
       model: 'Samsung S24 Ultra',
       variant: '512GB Black',
       orderDate: new Date('2024-01-20'),
       orderedPrice: 115000,
       cashback: 10000,
-      cardId: 'card2',
-      userId: 'user1',
+      cardId: 'card_2',
+      userId: 'user_1',
       deliveryDate: new Date('2024-01-28'),
       sellingPrice: 125000,
       dealer: 'Online Marketplace',
     },
     {
-      id: '3',
+      id: 'order_3',
       model: 'Pixel 8 Pro',
       variant: '256GB Obsidian',
       orderDate: new Date('2023-10-10'),
       orderedPrice: 85000,
       cashback: 0,
-      cardId: 'card1',
-      userId: 'user1',
+      cardId: 'card_1',
+      userId: 'user_1',
       deliveryDate: new Date('2023-10-18'),
       sellingPrice: 90000,
       dealer: 'Local Shop',
     },
     {
-      id: '4',
+      id: 'order_4',
       model: 'iPhone 15',
       variant: '128GB Blue',
       orderDate: new Date('2024-02-01'),
       orderedPrice: 72000,
       cashback: 2500,
-      cardId: 'card3',
-      userId: 'user2',
+      cardId: 'card_3',
+      userId: 'user_2',
       deliveryDate: new Date('2024-02-08'),
     },
 ];
@@ -327,7 +327,7 @@ export default function Dashboard() {
         return [
           `${o.model}\n${o.variant}`,
           userMap.get(o.userId) || 'N/A',
-          format(o.orderDate, "P"),
+          format(new Date(o.orderDate), "P"),
           formatCurrencyPdf(o.orderedPrice),
           formatCurrencyPdf(o.cashback),
           formatCurrencyPdf(netCost),
@@ -350,7 +350,7 @@ export default function Dashboard() {
       startY: lastTableY + 20,
       head: [['Date', 'Dealer', 'Amount', 'Description']],
       body: transactions.map(t => [
-        format(t.date, "P"),
+        format(new Date(t.date), "P"),
         t.dealer,
         formatCurrencyPdf(t.amount),
         t.description || 'N/A',
@@ -371,7 +371,7 @@ export default function Dashboard() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
-      const orderDate = order.orderDate;
+      const orderDate = new Date(order.orderDate);
       const inDateRange = !dateRange || (!dateRange.from || (isAfter(orderDate, dateRange.from) || isEqual(orderDate, dateRange.from))) && (!dateRange.to || (isBefore(orderDate, dateRange.to) || isEqual(orderDate, dateRange.to)));
       const userMatch = userFilter === 'all' || order.userId === userFilter;
       const cardMatch = cardFilter === "all" || order.cardId === cardFilter;
@@ -394,12 +394,12 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     const soldOrders = filteredOrders.filter(o => o.sellingPrice);
     const totalInvested = filteredOrders.reduce((sum, o) => sum + o.orderedPrice, 0);
-    const totalInvestedAfterCashback = filteredOrders.reduce((sum, o) => sum + (o.orderedPrice - o.cashback), 0);
+    const totalInvestedAfterCashback = filteredOrders.reduce((sum, o) => sum + (o.orderedPrice - (o.cashback || 0)), 0);
     const totalFromSoldPhones = soldOrders.reduce((sum, o) => sum + o.sellingPrice!, 0);
     const totalFromTransactions = transactions.reduce((sum, t) => sum + t.amount, 0);
     const totalReceived = totalFromSoldPhones + totalFromTransactions;
     
-    const profitFromSoldPhones = soldOrders.reduce((sum, o) => sum + (o.sellingPrice! - (o.orderedPrice - o.cashback)), 0);
+    const profitFromSoldPhones = soldOrders.reduce((sum, o) => sum + (o.sellingPrice! - (o.orderedPrice - (o.cashback || 0))), 0);
 
     const totalProfit = profitFromSoldPhones;
     
