@@ -480,25 +480,25 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between mx-auto gap-4">
-          <div className="flex items-center gap-4">
-            <Smartphone className="h-6 w-6 mr-2 text-primary"/>
-            <h1 className="text-2xl font-bold font-headline text-primary">
+        <div className="container flex h-16 items-center justify-between mx-auto">
+          <div className="flex items-center gap-2 md:gap-4">
+            <Smartphone className="h-6 w-6 text-primary"/>
+            <h1 className="text-xl md:text-2xl font-bold font-headline text-primary">
               FoneFlow
             </h1>
           </div>
-          <div className="flex-1" />
-          <div className="flex items-center gap-2">
+          
+          <div className="flex items-center gap-1 md:gap-2">
             {isAdmin && (
               <>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
                 <Button variant="outline" size="sm" onClick={handleImportClick}>
-                  <Upload className="mr-2 h-4 w-4" /> Import
+                  <Upload className="mr-1 md:mr-2 h-4 w-4" /> <span className="hidden md:inline">Import</span>
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <Download className="mr-2 h-4 w-4" /> Export
+                      <Download className="mr-1 md:mr-2 h-4 w-4" /> <span className="hidden md:inline">Export</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
@@ -513,36 +513,36 @@ export default function Dashboard() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                  <Button variant="outline" size="sm" className="text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-600" onClick={handleResetData}>
-                    <RotateCw className="mr-2 h-4 w-4" /> Reset Data
+                    <RotateCw className="mr-1 md:mr-2 h-4 w-4" /> <span className="hidden md:inline">Reset</span>
                   </Button>
               </>
             )}
-             <div className="flex items-center gap-2 border-l pl-4">
+             <div className="flex items-center gap-1 md:gap-2 border-l pl-2 md:pl-4">
                 <div className="text-right">
-                    <p className="font-semibold">{currentUser.name}</p>
-                    <p className="text-xs text-muted-foreground">{currentUser.role === 'admin' ? 'Administrator' : 'User'}</p>
+                    <p className="font-semibold text-sm md:text-base">{currentUser.name}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{currentUser.role}</p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => router.push('/settings')}>
-                <Settings className="h-5 w-5" />
-                <span className="sr-only">Settings</span>
+                  <Settings className="h-5 w-5" />
+                  <span className="sr-only">Settings</span>
                 </Button>
                 <Button variant="ghost" size="icon" onClick={handleLogout}>
-                <LogOut className="h-5 w-5" />
-                <span className="sr-only">Logout</span>
+                  <LogOut className="h-5 w-5" />
+                  <span className="sr-only">Logout</span>
                 </Button>
              </div>
           </div>
         </div>
       </header>
       <main className="flex-1 flex flex-col gap-8 p-4 md:p-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 animate-fade-in-up">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 animate-fade-in-up">
           <StatCard title="Total Phones Ordered" value={stats.totalPhones.toString()} icon={Smartphone} />
           <StatCard title="Total Invested" value={formatCurrency(stats.totalInvested)} icon={DollarSign} description={`After cashback: ${formatCurrency(stats.totalInvestedAfterCashback)}`}/>
           <StatCard title="Total Received" value={formatCurrency(stats.totalReceived)} icon={TrendingUp} />
           <StatCard title="Total Pending" value={formatCurrency(stats.totalPending)} icon={AlertCircle} className={stats.totalPending > 0 ? "text-orange-600" : ""} />
           <StatCard title="Total Profit" value={formatCurrency(stats.totalProfit)} icon={TrendingUp} className="text-green-600" />
           <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
-          <Card className={cn("shadow-md hover:shadow-lg hover:-translate-y-1 transition-all duration-300")}>
+          <Card className={cn("shadow-md hover:shadow-lg hover:-translate-y-1 transition-all duration-300 animate-fade-in-up")} style={{animationDelay: '0.1s', animationFillMode: 'backwards'}}>
              <CardContent className="pt-6">
                 {isAdmin && (
                     <div className="mb-4">
@@ -573,7 +573,7 @@ export default function Dashboard() {
 
         <Card className="shadow-lg animate-fade-in-up" style={{animationDelay: '0.2s', animationFillMode: 'backwards'}}>
            <CardHeader>
-             <div className="flex items-center justify-between flex-wrap gap-4">
+             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <CardTitle>FoneFlow Hub</CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
                     <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
@@ -585,7 +585,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="orders">
-              <TabsList>
+              <TabsList className="w-full md:w-auto overflow-x-auto whitespace-nowrap">
                   <TabsTrigger value="orders">Orders</TabsTrigger>
                   {isAdmin && <TabsTrigger value="transactions">Transactions</TabsTrigger>}
                   <TabsTrigger value="cards">Credit Cards</TabsTrigger>
@@ -595,17 +595,17 @@ export default function Dashboard() {
                 <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap my-4">
                   <Popover>
                       <PopoverTrigger asChild>
-                      <Button id="date" variant={"outline"} className="w-full sm:w-auto min-w-[240px] justify-start text-left font-normal">
+                      <Button id="date" variant={"outline"} className="w-full md:w-auto min-w-[240px] justify-start text-left font-normal">
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>) : (format(dateRange.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}
                       </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="end">
+                      <PopoverContent className="w-auto p-0" align="start">
                       <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2}/>
                       </PopoverContent>
                   </Popover>
                   {isAdmin && <Select value={userFilter} onValueChange={setUserFilter}>
-                      <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
+                      <SelectTrigger className="w-full md:w-[180px]">
                           <Users className="mr-2 h-4 w-4" />
                           <SelectValue placeholder="Filter by user" />
                       </SelectTrigger>
@@ -615,7 +615,7 @@ export default function Dashboard() {
                       </SelectContent>
                   </Select>}
                   <Select value={cardFilter} onValueChange={setCardFilter}>
-                      <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
+                      <SelectTrigger className="w-full md:w-[180px]">
                           <CreditCardIcon className="mr-2 h-4 w-4" />
                           <SelectValue placeholder="Filter by card" />
                       </SelectTrigger>
@@ -625,7 +625,7 @@ export default function Dashboard() {
                       </SelectContent>
                   </Select>
                   <Select value={dealerFilter} onValueChange={setDealerFilter}>
-                      <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
+                      <SelectTrigger className="w-full md:w-[180px]">
                           <Landmark className="mr-2 h-4 w-4" />
                           <SelectValue placeholder="Filter by dealer" />
                       </SelectTrigger>
@@ -664,30 +664,32 @@ export default function Dashboard() {
                                 <CardDescription>Total amount spent on each credit card for orders, minus any payments received.</CardDescription>
                              </CardHeader>
                              <CardContent>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Card</TableHead>
-                                            <TableHead>User</TableHead>
-                                            <TableHead className="text-right">Total Bill</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {cardsToDisplay.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="h-24 text-center">No cards found.</TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            cardsToDisplay.map(card => (
-                                                <TableRow key={card.id}>
-                                                    <TableCell>{card.name} (....{card.cardNumber.slice(-4)})</TableCell>
-                                                    <TableCell>{users.find(u => u.id === card.userId)?.name || 'N/A'}</TableCell>
-                                                    <TableCell className="text-right font-medium">{formatCurrency(creditCardBills.get(card.id) || 0)}</TableCell>
-                                                </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                <div className="rounded-md border">
+                                  <Table>
+                                      <TableHeader>
+                                          <TableRow>
+                                              <TableHead>Card</TableHead>
+                                              <TableHead>User</TableHead>
+                                              <TableHead className="text-right">Total Bill</TableHead>
+                                          </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                          {cardsToDisplay.length === 0 ? (
+                                              <TableRow>
+                                                  <TableCell colSpan={3} className="h-24 text-center">No cards found.</TableCell>
+                                              </TableRow>
+                                          ) : (
+                                              cardsToDisplay.map(card => (
+                                                  <TableRow key={card.id}>
+                                                      <TableCell>{card.name} (....{card.cardNumber.slice(-4)})</TableCell>
+                                                      <TableCell>{users.find(u => u.id === card.userId)?.name || 'N/A'}</TableCell>
+                                                      <TableCell className="text-right font-medium">{formatCurrency(creditCardBills.get(card.id) || 0)}</TableCell>
+                                                  </TableRow>
+                                              ))
+                                          )}
+                                      </TableBody>
+                                  </Table>
+                                </div>
                              </CardContent>
                            </Card>
                         </TabsContent>
