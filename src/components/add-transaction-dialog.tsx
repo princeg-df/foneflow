@@ -87,7 +87,7 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
   function onSubmit(data: TransactionFormValues) {
     const newTransaction: Transaction = {
       ...data,
-      id: isEditMode ? transaction.id : new Date().toISOString(),
+      id: isEditMode ? transaction.id : `txn_${new Date().getTime()}`,
       description: data.description,
     }
     onAddTransaction(newTransaction)

@@ -66,7 +66,7 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange }:
   function onSubmit(data: UserFormValues) {
     const newUser: User = {
       ...data,
-      id: isEditMode ? user.id : new Date().toISOString(),
+      id: isEditMode ? user.id : `user_${new Date().getTime()}`,
     }
     onAddUser(newUser)
     toast({

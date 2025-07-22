@@ -75,7 +75,7 @@ export default function AddCardDialog({ onAddCard, users, card, isOpen, onOpenCh
   function onSubmit(data: CardFormValues) {
     const newCard: CreditCard = {
       ...data,
-      id: isEditMode ? card.id : new Date().toISOString(),
+      id: isEditMode ? card.id : `card_${new Date().getTime()}`,
     }
     onAddCard(newCard)
     toast({

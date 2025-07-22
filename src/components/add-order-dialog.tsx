@@ -121,7 +121,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
   function onSubmit(data: OrderFormValues) {
     const newOrder: Order = {
       ...data,
-      id: isEditMode ? order.id : new Date().toISOString(),
+      id: isEditMode ? order.id : `order_${new Date().getTime()}`,
       cashback: data.cashback || 0,
       sellingPrice: data.sellingPrice,
       dealer: data.dealer,
