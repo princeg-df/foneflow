@@ -65,6 +65,7 @@ export default function Dashboard() {
   const [userFilter, setUserFilter] = useState<string>("all")
   const [cardFilter, setCardFilter] = useState<string>("all")
   const [dealerFilter, setDealerFilter] = useState<string>("all")
+  const [cashbackUserFilter, setCashbackUserFilter] = useState<string>("all");
   
   const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
@@ -410,6 +411,13 @@ export default function Dashboard() {
       avgProfit
     };
   }, [filteredOrders, transactions]);
+  
+  const userCashback = useMemo(() => {
+    const ordersToConsider = cashbackUserFilter === 'all' 
+      ? orders 
+      : orders.filter(o => o.userId === cashbackUserFilter);
+    return ordersToConsider.reduce((sum, o) => sum + (o.cashback || 0), 0);
+  }, [orders, cashbackUserFilter]);
 
 
   const resetFilters = () => {
@@ -454,18 +462,41 @@ export default function Dashboard() {
         </div>
       </header>
       <main className="flex-1 flex flex-col gap-8 p-4 md:p-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <StatCard title="Total Phones Ordered" value={stats.totalPhones.toString()} icon={Smartphone} />
           <StatCard title="Total Invested" value={formatCurrency(stats.totalInvested)} icon={DollarSign} description={`After cashback: ${formatCurrency(stats.totalInvestedAfterCashback)}`}/>
           <StatCard title="Total Received" value={formatCurrency(stats.totalReceived)} icon={TrendingUp} />
           <StatCard title="Total Profit" value={formatCurrency(stats.totalProfit)} icon={TrendingUp} className="text-green-600" />
           <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
+          <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Cashback</CardTitle>
+                 {isAdmin && <Select value={cashbackUserFilter} onValueChange={setCashbackUserFilter}>
+                      <SelectTrigger className="w-full sm:w-auto min-w-[120px] h-8 -my-2 text-xs">
+                          <Users className="mr-2 h-3 w-3" />
+                          <SelectValue placeholder="Filter by user" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="all">All Users</SelectItem>
+                          {users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
+                      </SelectContent>
+                  </Select>}
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(userCashback)}</div>
+                <p className="text-xs text-muted-foreground">
+                    {cashbackUserFilter === 'all' ? 'Across all users' : `For ${users.find(u => u.id === cashbackUserFilter)?.name || 'selected user'}`}
+                </p>
+            </CardContent>
+          </Card>
         </div>
 
         <Card className="shadow-lg">
-           <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+           <CardHeader>
             <CardTitle>FoneFlow Hub</CardTitle>
-            <div className="flex items-center gap-2 flex-wrap">
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 flex-wrap mb-4 border-b pb-4">
               <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
               {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
               <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
@@ -488,8 +519,6 @@ export default function Dashboard() {
                 <FileText className="mr-2 h-4 w-4" /> Export PDF
               </Button>
             </div>
-          </CardHeader>
-          <CardContent>
             <Tabs defaultValue="orders">
               <TabsList>
                   <TabsTrigger value="orders">Orders</TabsTrigger>
