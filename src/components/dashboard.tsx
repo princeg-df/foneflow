@@ -1,26 +1,30 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
-import type { Order, User, CreditCard } from "@/lib/types"
+import type { Order, User, CreditCard, Transaction } from "@/lib/types"
 import useLocalStorage from "@/hooks/use-local-storage"
 import StatCard from "@/components/stat-card"
 import OrderTable from "@/components/order-table"
 import UserTable from "@/components/user-table"
 import CardTable from "@/components/card-table"
+import TransactionTable from "@/components/transaction-table"
 import AddOrderDialog from "@/components/add-order-dialog"
 import AddUserDialog from "@/components/add-user-dialog"
 import AddCardDialog from "@/components/add-card-dialog"
+import AddTransactionDialog from "@/components/add-transaction-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
 import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,11 +100,16 @@ const initialOrders: Order[] = [
     },
 ];
 
+const initialTransactions: Transaction[] = [];
+
 export default function Dashboard() {
   const [orders, setOrders] = useLocalStorage<Order[]>("foneflow-orders", initialOrders)
   const [users, setUsers] = useLocalStorage<User[]>("foneflow-users", initialUsers);
   const [cards, setCards] = useLocalStorage<CreditCard[]>("foneflow-cards", initialCards);
-  const [_, setIsAuthenticated] = useLocalStorage('foneflow-auth', false);
+  const [transactions, setTransactions] = useLocalStorage<Transaction[]>("foneflow-transactions", initialTransactions);
+  const [isAuthenticated, setIsAuthenticated] = useLocalStorage('foneflow-auth', false);
+  const [isClient, setIsClient] = useState(false);
+
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [userFilter, setUserFilter] = useState<string>("all")
@@ -115,12 +124,25 @@ export default function Dashboard() {
 
   const [cardToEdit, setCardToEdit] = useState<CreditCard | null>(null);
   const [cardToDelete, setCardToDelete] = useState<CreditCard | null>(null);
+  
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
   const { toast } = useToast()
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isImportAlertOpen, setImportAlertOpen] = useState(false)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (isClient && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, router, isClient]);
 
   const handleAddOrder = (order: Order) => {
     setOrders((prev) => [order, ...prev])
@@ -180,11 +202,28 @@ export default function Dashboard() {
     toast({ title: "Success!", description: "Card deleted successfully." });
   };
 
+  const handleAddTransaction = (transaction: Transaction) => {
+    setTransactions((prev) => [transaction, ...prev])
+  }
+
+  const handleUpdateTransaction = (updatedTransaction: Transaction) => {
+    setTransactions((prev) => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
+    setTransactionToEdit(null);
+  };
+
+  const handleDeleteTransaction = (transactionId: string) => {
+    setTransactions((prev) => prev.filter(t => t.id !== transactionId));
+    setTransactionToDelete(null);
+    toast({ title: "Success!", description: "Transaction deleted successfully." });
+  };
+
+
   const handleExport = () => {
     const data = {
       users,
       cards,
       orders,
+      transactions,
     };
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
     const link = document.createElement("a");
@@ -194,10 +233,6 @@ export default function Dashboard() {
     toast({ title: "Success!", description: "Data exported successfully." });
   };
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -205,6 +240,10 @@ export default function Dashboard() {
       setImportAlertOpen(true);
     }
     if(event.target) event.target.value = '';
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleImportConfirm = () => {
@@ -225,10 +264,15 @@ export default function Dashboard() {
             orderDate: new Date(o.orderDate),
             deliveryDate: o.deliveryDate ? new Date(o.deliveryDate) : undefined,
           }))
+          const parsedTransactions = (data.transactions || []).map((t: any) => ({
+            ...t,
+            date: new Date(t.date),
+          }))
 
           setUsers(data.users);
           setCards(data.cards);
           setOrders(parsedOrders);
+          setTransactions(parsedTransactions);
 
           toast({ title: "Success!", description: "Data imported successfully." });
         } else {
@@ -252,6 +296,65 @@ export default function Dashboard() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     router.replace('/login');
+  };
+
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+
+  const handleExportPdf = () => {
+    const doc = new jsPDF();
+    const userMap = new Map(users.map(u => [u.id, u.name]));
+    const cardMap = new Map(cards.map(c => [c.id, `${c.name} (...${c.cardNumber.slice(-4)})`]));
+
+    doc.setFontSize(20);
+    doc.text("FoneFlow Report", 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Report generated on: ${format(new Date(), "PPP")}`, 14, 30);
+    
+    // Orders Table
+    autoTable(doc, {
+      startY: 40,
+      head: [['Model', 'User', 'Order Date', 'Price', 'Cashback', 'Net Cost', 'Selling Price', 'Profit']],
+      body: filteredOrders.map(o => {
+        const netCost = o.orderedPrice - o.cashback;
+        const profit = o.sellingPrice ? o.sellingPrice - netCost : 0;
+        return [
+          `${o.model}\n${o.variant}`,
+          userMap.get(o.userId) || 'N/A',
+          format(o.orderDate, "P"),
+          formatCurrency(o.orderedPrice),
+          formatCurrency(o.cashback),
+          formatCurrency(netCost),
+          o.sellingPrice ? formatCurrency(o.sellingPrice) : 'N/A',
+          o.sellingPrice ? formatCurrency(profit) : 'N/A',
+        ];
+      }),
+      headStyles: { fillColor: [33, 150, 243] },
+      didDrawPage: (data) => {
+        doc.setFontSize(16);
+        doc.text("Orders", 14, data.cursor!.y - 10);
+      }
+    });
+
+    // Transactions Table
+    const lastTableY = (doc as any).lastAutoTable.finalY || 100;
+     autoTable(doc, {
+      startY: lastTableY + 20,
+      head: [['Date', 'Dealer', 'Amount', 'Description']],
+      body: transactions.map(t => [
+        format(t.date, "P"),
+        t.dealer,
+        formatCurrency(t.amount),
+        t.description || 'N/A',
+      ]),
+      headStyles: { fillColor: [33, 150, 243] },
+       didDrawPage: (data) => {
+        doc.setFontSize(16);
+        doc.text("Transactions", 14, data.cursor!.y - 10);
+      }
+    });
+
+    doc.save(`foneflow-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast({ title: "Success!", description: "PDF report exported successfully." });
   };
 
 
@@ -283,7 +386,9 @@ export default function Dashboard() {
     const soldOrders = filteredOrders.filter(o => o.sellingPrice);
     const totalInvested = filteredOrders.reduce((sum, o) => sum + o.orderedPrice, 0);
     const totalInvestedAfterCashback = filteredOrders.reduce((sum, o) => sum + (o.orderedPrice - o.cashback), 0);
-    const totalReceived = soldOrders.reduce((sum, o) => sum + o.sellingPrice!, 0);
+    const totalFromSoldPhones = soldOrders.reduce((sum, o) => sum + o.sellingPrice!, 0);
+    const totalFromTransactions = transactions.reduce((sum, t) => sum + t.amount, 0);
+    const totalReceived = totalFromSoldPhones + totalFromTransactions;
     const totalProfit = totalReceived - soldOrders.reduce((sum, o) => sum + (o.orderedPrice - o.cashback), 0);
     const avgProfit = soldOrders.length > 0 ? totalProfit / soldOrders.length : 0;
     
@@ -295,9 +400,8 @@ export default function Dashboard() {
       totalProfit,
       avgProfit
     };
-  }, [filteredOrders]);
+  }, [filteredOrders, transactions]);
 
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
 
   const resetFilters = () => {
     setDateRange(undefined);
@@ -305,6 +409,14 @@ export default function Dashboard() {
     setCardFilter("all");
     setDealerFilter("all");
   };
+
+  if (!isClient || !isAuthenticated) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8 min-h-screen bg-background text-foreground p-4 md:p-8">
@@ -343,7 +455,8 @@ export default function Dashboard() {
              <div className="flex gap-2 justify-center flex-wrap">
               <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
               <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
-              <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export</Button>
+              <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export JSON</Button>
+              <Button variant="outline" onClick={handleExportPdf}><FileText className="mr-2 h-4 w-4" /> Export PDF</Button>
             </div>
           </div>
         </CardHeader>
@@ -352,12 +465,14 @@ export default function Dashboard() {
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 mb-4">
                 <TabsList>
                     <TabsTrigger value="orders">Orders</TabsTrigger>
+                    <TabsTrigger value="transactions">Transactions</TabsTrigger>
                     <TabsTrigger value="users">Users</TabsTrigger>
                     <TabsTrigger value="cards">Credit Cards</TabsTrigger>
                 </TabsList>
                  <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap w-full md:w-auto justify-end">
                     <div className="flex gap-2 flex-wrap justify-center w-full md:w-auto">
                         <AddOrderDialog onAddOrder={handleAddOrder} users={users} cards={cards} />
+                        <AddTransactionDialog onAddTransaction={handleAddTransaction} />
                         <AddUserDialog onAddUser={handleAddUser} />
                         <AddCardDialog onAddCard={handleAddCard} users={users}/>
                     </div>
@@ -398,7 +513,7 @@ export default function Dashboard() {
                 </Select>
                  <Select value={dealerFilter} onValueChange={setDealerFilter}>
                     <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
-                        <Users className="mr-2 h-4 w-4" />
+                        <Landmark className="mr-2 h-4 w-4" />
                         <SelectValue placeholder="Filter by dealer" />
                     </SelectTrigger>
                     <SelectContent>
@@ -414,6 +529,13 @@ export default function Dashboard() {
                 onEditOrder={setOrderToEdit}
                 onDeleteOrder={setOrderToDelete}
               />
+            </TabsContent>
+            <TabsContent value="transactions">
+                <TransactionTable 
+                  transactions={transactions} 
+                  onEditTransaction={setTransactionToEdit} 
+                  onDeleteTransaction={setTransactionToDelete} 
+                />
             </TabsContent>
             <TabsContent value="users">
                 <UserTable users={users} onEditUser={setUserToEdit} onDeleteUser={setUserToDelete} />
@@ -448,6 +570,32 @@ export default function Dashboard() {
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={() => handleDeleteOrder(orderToDelete.id)}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+         </AlertDialog>
+      )}
+      
+      {transactionToEdit && (
+        <AddTransactionDialog
+          isOpen={!!transactionToEdit}
+          onOpenChange={(isOpen) => !isOpen && setTransactionToEdit(null)}
+          onAddTransaction={handleUpdateTransaction}
+          transaction={transactionToEdit}
+        />
+      )}
+
+      {transactionToDelete && (
+         <AlertDialog open={!!transactionToDelete} onOpenChange={(isOpen) => !isOpen && setTransactionToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the transaction from {transactionToDelete.dealer} of {formatCurrency(transactionToDelete.amount)}.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setTransactionToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleDeleteTransaction(transactionToDelete.id)}>Delete</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
          </AlertDialog>
@@ -511,7 +659,7 @@ export default function Dashboard() {
             <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to import data?</AlertDialogTitle>
             <AlertDialogDescription>
-                This will overwrite all existing data (orders, users, and cards). This action cannot be undone.
+                This will overwrite all existing data (orders, users, cards, and transactions). This action cannot be undone.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -23,3 +23,11 @@ export type CreditCard = {
     cardNumber: string;
     userId: string;
 }
+
+export type Transaction = {
+    id: string;
+    date: Date;
+    amount: number;
+    dealer: string;
+    description?: string;
+}

@@ -126,5 +126,3 @@ export default function OrderTable({ orders, users, cards, onEditOrder, onDelete
     </div>
   )
 }
-
-    
