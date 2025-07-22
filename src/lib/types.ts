@@ -20,5 +20,6 @@ export type User = {
 export type CreditCard = {
     id: string;
     name: string;
+    cardNumber: string;
     userId: string;
 }

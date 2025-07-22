@@ -22,9 +22,9 @@ const initialUsers: User[] = [
 ]
 
 const initialCards: CreditCard[] = [
-    { id: 'card1', name: 'Amex Gold', userId: 'user1' },
-    { id: 'card2', name: 'Chase Sapphire', userId: 'user1' },
-    { id: 'card3', name: 'Citi Double Cash', userId: 'user2' },
+    { id: 'card1', name: 'Amex Gold', cardNumber: '1111222233334444', userId: 'user1' },
+    { id: 'card2', name: 'Chase Sapphire', cardNumber: '5555666677778888', userId: 'user1' },
+    { id: 'card3', name: 'Citi Double Cash', cardNumber: '9999000011112222', userId: 'user2' },
 ]
 
 const initialOrders: Order[] = [
@@ -33,12 +33,12 @@ const initialOrders: Order[] = [
       model: 'iPhone 15 Pro',
       variant: '256GB Natural Titanium',
       orderDate: new Date('2023-09-15'),
-      orderedPrice: 1099,
-      cashback: 50,
+      orderedPrice: 99900,
+      cashback: 5000,
       cardId: 'card1',
       userId: 'user1',
       deliveryDate: new Date('2023-09-22'),
-      sellingPrice: 1300,
+      sellingPrice: 110000,
       dealer: 'Local Shop',
     },
     {
@@ -46,12 +46,12 @@ const initialOrders: Order[] = [
       model: 'Samsung S24 Ultra',
       variant: '512GB Black',
       orderDate: new Date('2024-01-20'),
-      orderedPrice: 1299,
-      cashback: 100,
+      orderedPrice: 115000,
+      cashback: 10000,
       cardId: 'card2',
       userId: 'user1',
       deliveryDate: new Date('2024-01-28'),
-      sellingPrice: 1450,
+      sellingPrice: 125000,
       dealer: 'Online Marketplace',
     },
     {
@@ -59,12 +59,12 @@ const initialOrders: Order[] = [
       model: 'Pixel 8 Pro',
       variant: '256GB Obsidian',
       orderDate: new Date('2023-10-10'),
-      orderedPrice: 999,
+      orderedPrice: 85000,
       cashback: 0,
       cardId: 'card1',
       userId: 'user1',
       deliveryDate: new Date('2023-10-18'),
-      sellingPrice: 1050,
+      sellingPrice: 90000,
       dealer: 'Local Shop',
     },
     {
@@ -72,8 +72,8 @@ const initialOrders: Order[] = [
       model: 'iPhone 15',
       variant: '128GB Blue',
       orderDate: new Date('2024-02-01'),
-      orderedPrice: 799,
-      cashback: 25,
+      orderedPrice: 72000,
+      cashback: 2500,
       cardId: 'card3',
       userId: 'user2',
       deliveryDate: new Date('2024-02-08'),
@@ -138,7 +138,7 @@ export default function Dashboard() {
     };
   }, [filteredOrders]);
 
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
 
   const resetFilters = () => {
     setDateRange(undefined);
@@ -190,7 +190,7 @@ export default function Dashboard() {
                     </SelectTrigger>
                     <SelectContent>
                        <SelectItem value="all">All Cards</SelectItem>
-                       {cardsForFilter.map(card => <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>)}
+                       {cardsForFilter.map(card => <SelectItem key={card.id} value={card.id}>{card.name} (....{card.cardNumber.slice(-4)})</SelectItem>)}
                     </SelectContent>
                 </Select>
                  <Select value={dealerFilter} onValueChange={setDealerFilter}>

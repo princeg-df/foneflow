@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast"
 
 const cardSchema = z.object({
   name: z.string().min(2, "Card name is required"),
+  cardNumber: z.string().regex(/^\d{16}$/, "Card number must be 16 digits"),
   userId: z.string({required_error: "User is required."}),
 })
 
@@ -54,6 +55,7 @@ export default function AddCardDialog({ onAddCard, users }: AddCardDialogProps) 
     resolver: zodResolver(cardSchema),
     defaultValues: {
       name: "",
+      cardNumber: "",
     },
   })
 
@@ -93,6 +95,14 @@ export default function AddCardDialog({ onAddCard, users }: AddCardDialogProps) 
                 <FormItem>
                   <FormLabel>Card Name</FormLabel>
                   <FormControl><Input placeholder="e.g., Amex Gold" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField control={form.control} name="cardNumber" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Card Number</FormLabel>
+                  <FormControl><Input type="text" placeholder="e.g., 1234567890123456" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}

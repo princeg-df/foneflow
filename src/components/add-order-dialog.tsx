@@ -157,7 +157,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
                         </FormControl>
                         <SelectContent>
                         {filteredCards.map(card => (
-                            <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
+                            <SelectItem key={card.id} value={card.id}>{card.name} (....{card.cardNumber.slice(-4)})</SelectItem>
                         ))}
                         </SelectContent>
                     </Select>
@@ -187,7 +187,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
             <FormField control={form.control} name="orderedPrice" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Ordered Price</FormLabel>
-                  <FormControl><Input type="number" step="0.01" placeholder="e.g., 1099" {...field} /></FormControl>
+                  <FormControl><Input type="number" step="0.01" placeholder="e.g., 89000" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -195,7 +195,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
              <FormField control={form.control} name="cashback" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cashback</FormLabel>
-                  <FormControl><Input type="number" step="0.01" placeholder="e.g., 50" {...field} /></FormControl>
+                  <FormControl><Input type="number" step="0.01" placeholder="e.g., 5000" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
