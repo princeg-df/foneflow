@@ -404,13 +404,15 @@ export default function Dashboard() {
     const totalInvestedAfterCashback = filteredOrders.reduce((sum, o) => sum + (o.orderedPrice - (o.cashback || 0)), 0);
     const totalFromTransactions = transactions.reduce((sum, t) => sum + t.amount, 0);
     const totalReceived = totalFromTransactions;
+
+    const totalSellingPrice = soldOrders.reduce((sum, o) => sum + (o.sellingPrice || 0), 0);
     
     const profitFromSoldPhones = soldOrders.reduce((sum, o) => sum + (o.sellingPrice! - (o.orderedPrice - (o.cashback || 0))), 0);
 
     const totalProfit = profitFromSoldPhones;
     
     const avgProfit = soldOrders.length > 0 ? totalProfit / soldOrders.length : 0;
-    const totalPending = totalInvestedAfterCashback - totalReceived;
+    const totalPending = totalSellingPrice - totalReceived;
     
     return {
       totalPhones: filteredOrders.length,
