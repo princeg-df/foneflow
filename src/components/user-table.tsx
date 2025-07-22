@@ -34,8 +34,8 @@ export default function UserTable({ users, onEditUser, onDeleteUser, currentUser
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>User ID</TableHead>
             <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -50,8 +50,8 @@ export default function UserTable({ users, onEditUser, onDeleteUser, currentUser
           ) : (
             users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium text-muted-foreground">{user.id}</TableCell>
-                  <TableCell>{user.name}</TableCell>
+                  <TableCell className="font-medium">{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
                   <TableCell>
                       <Badge variant={user.role === 'admin' ? "default" : "secondary"}>
                           {user.role}

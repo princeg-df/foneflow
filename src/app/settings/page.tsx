@@ -62,7 +62,7 @@ export default function SettingsPage() {
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader>
           <CardTitle className="text-2xl">Settings</CardTitle>
-          <CardDescription>Change your application password here. Your username is <span className="font-semibold text-primary">{currentUser.name}</span>.</CardDescription>
+          <CardDescription>Change your application password here. Your email is <span className="font-semibold text-primary">{currentUser.email}</span>.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

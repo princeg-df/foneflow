@@ -27,9 +27,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import useLocalStorage from "@/hooks/use-local-storage"
 
 const userSchema = z.object({
   name: z.string().min(2, "Name is required"),
+  email: z.string().email("Invalid email address."),
   password: z.string().min(4, "Password must be at least 4 characters long"),
   role: z.enum(["admin", "user"]),
 })
@@ -47,6 +49,7 @@ interface AddUserDialogProps {
 export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, currentUser }: AddUserDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const { toast } = useToast()
+  const [users] = useLocalStorage<User[]>('foneflow-users', []);
 
   const isEditMode = !!user;
 
@@ -56,18 +59,30 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, c
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
-    defaultValues: isEditMode ? { name: user.name, password: user.password, role: user.role } : { name: "", password: "", role: "user" },
+    defaultValues: isEditMode ? { name: user.name, email: user.email, password: user.password, role: user.role } : { name: "", email: "", password: "", role: "user" },
   })
   
   useEffect(() => {
     if (user) {
-      form.reset({ name: user.name, password: user.password, role: user.role });
+      form.reset({ name: user.name, email: user.email, password: user.password, role: user.role });
     } else {
-      form.reset({ name: "", password: "", role: "user" });
+      form.reset({ name: "", email: "", password: "", role: "user" });
     }
   }, [user, form]);
 
   function onSubmit(data: UserFormValues) {
+    const emailInUse = users.some(
+      (u) => u.email === data.email && u.id !== user?.id
+    );
+
+    if (emailInUse) {
+      form.setError("email", {
+        type: "manual",
+        message: "This email is already in use.",
+      });
+      return;
+    }
+
     const newUser: User = {
       ...data,
       id: isEditMode ? user.id : `user_${new Date().getTime()}`,
@@ -115,6 +130,14 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, c
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField control={form.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl><Input type="email" placeholder="e.g., john.doe@example.com" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}

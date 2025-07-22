@@ -11,11 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, LogIn, User } from "lucide-react";
+import { Smartphone, LogIn, Mail } from "lucide-react";
 import type { User as UserType } from "@/lib/types";
 
 const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -24,6 +24,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const defaultAdminUser: UserType = {
   id: 'user_admin',
   name: 'Prince',
+  email: 'princegupta619@gmail.com',
   password: 'admin',
   role: 'admin',
 };
@@ -36,14 +37,17 @@ export default function LoginPage() {
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { username: "", password: "" },
+    defaultValues: { email: "", password: "" },
   });
   
   // Ensure default admin exists
   useEffect(() => {
-    const adminExists = users.some(u => u.role === 'admin');
+    const adminExists = users.some(u => u.role === 'admin' && u.email === defaultAdminUser.email);
     if (!adminExists) {
-        setUsers(prev => [...prev, defaultAdminUser]);
+        const otherAdmins = users.filter(u => u.role === 'admin');
+        if (otherAdmins.length === 0) {
+            setUsers(prev => [...prev, defaultAdminUser]);
+        }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setUsers]);
@@ -56,7 +60,7 @@ export default function LoginPage() {
   }, [currentUser, router]);
 
   function onSubmit(data: LoginFormValues) {
-    const user = users.find(u => u.name === data.username && u.password === data.password);
+    const user = users.find(u => u.email === data.email && u.password === data.password);
     if (user) {
       setCurrentUser(user);
       toast({ title: "Success", description: "Logged in successfully." });
@@ -64,7 +68,7 @@ export default function LoginPage() {
     } else {
       toast({
         title: "Error",
-        description: "Incorrect username or password. Please try again.",
+        description: "Incorrect email or password. Please try again.",
         variant: "destructive",
       });
     }
@@ -87,12 +91,12 @@ export default function LoginPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
-                name="username"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your username" {...field} />
+                      <Input type="email" placeholder="Enter your email" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -120,7 +124,7 @@ export default function LoginPage() {
         </CardContent>
       </Card>
       <p className="mt-8 text-sm text-muted-foreground text-center">
-        Default admin username is <span className="font-bold">Prince</span> and password is <span className="font-bold">admin</span>.
+        Default admin email is <span className="font-bold">princegupta619@gmail.com</span> and password is <span className="font-bold">admin</span>.
       </p>
     </div>
   );
