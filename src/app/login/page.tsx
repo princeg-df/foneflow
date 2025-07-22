@@ -30,7 +30,7 @@ const defaultAdminUser: UserType = {
 
 export default function LoginPage() {
   const [currentUser, setCurrentUser] = useLocalStorage<UserType | null>('foneflow-currentUser', null);
-  const [users, setUsers] = useLocalStorage<UserType[]>('foneflow-users', []);
+  const [users, setUsers] = useLocalStorage<UserType[]>('foneflow-users', [defaultAdminUser]);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -45,7 +45,8 @@ export default function LoginPage() {
     if (!adminExists) {
         setUsers(prev => [...prev, defaultAdminUser]);
     }
-  }, [users, setUsers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setUsers]);
 
 
   useEffect(() => {
