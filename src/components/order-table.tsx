@@ -71,7 +71,7 @@ export default function OrderTable({ orders, users, cards, onEditOrder, onDelete
               const profitPercentage = profit !== undefined && netCost > 0 ? (profit / netCost) * 100 : undefined
 
               return (
-                <TableRow key={order.id}>
+                <TableRow key={order.id} className="transition-colors hover:bg-muted/50">
                   <TableCell className="font-medium">
                     <div>{order.model}</div>
                     <div className="text-xs text-muted-foreground">{order.variant}</div>

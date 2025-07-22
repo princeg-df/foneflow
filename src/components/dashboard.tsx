@@ -519,7 +519,7 @@ export default function Dashboard() {
         </div>
       </header>
       <main className="flex-1 flex flex-col gap-8 p-4 md:p-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 animate-fade-in-up">
           <StatCard title="Total Phones Ordered" value={stats.totalPhones.toString()} icon={Smartphone} />
           <StatCard title="Total Invested" value={formatCurrency(stats.totalInvested)} icon={DollarSign} description={`After cashback: ${formatCurrency(stats.totalInvestedAfterCashback)}`}/>
           <StatCard title="Total Received" value={formatCurrency(stats.totalReceived)} icon={TrendingUp} />
@@ -554,7 +554,7 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        <Card className="shadow-lg">
+        <Card className="shadow-lg animate-fade-in-up" style={{animationDelay: '0.2s', animationFillMode: 'backwards'}}>
            <CardHeader>
              <div className="flex items-center justify-between flex-wrap gap-4">
                 <CardTitle>FoneFlow Hub</CardTitle>
