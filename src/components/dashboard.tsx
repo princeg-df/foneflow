@@ -501,24 +501,24 @@ export default function Dashboard() {
           <StatCard title="Total Profit" value={formatCurrency(stats.totalProfit)} icon={TrendingUp} className="text-green-600" />
           <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
           <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Cashback</CardTitle>
-                {isAdmin && (
-                  <div className="w-[150px]">
-                    <Select value={cashbackUserFilter} onValueChange={setCashbackUserFilter}>
-                        <SelectTrigger className="h-8 text-xs">
-                            <Users className="mr-2 h-3 w-3" />
-                            <SelectValue placeholder="All Users" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Users</SelectItem>
-                            {users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                  </div>
-                 )}
+            <CardHeader>
+                <CardTitle className="text-sm font-medium">Total Cashback</CardTitle>
             </CardHeader>
             <CardContent>
+                {isAdmin && (
+                    <div className="mb-4">
+                        <Select value={cashbackUserFilter} onValueChange={setCashbackUserFilter}>
+                            <SelectTrigger className="h-8 text-xs">
+                                <Users className="mr-2 h-3 w-3" />
+                                <SelectValue placeholder="All Users" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Users</SelectItem>
+                                {users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
                 <div className="text-2xl font-bold">{formatCurrency(userCashback)}</div>
                 <p className="text-xs text-muted-foreground">
                     {cashbackUserFilter === 'all' ? 'Across all users' : `For ${users.find(u => u.id === cashbackUserFilter)?.name || 'selected user'}`}
@@ -775,4 +775,3 @@ export default function Dashboard() {
       </footer>
     </div>
   )
-}
