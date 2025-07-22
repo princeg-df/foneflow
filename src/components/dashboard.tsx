@@ -428,9 +428,9 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-8 min-h-screen bg-background text-foreground p-4 md:p-8">
-      <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-4 md:-mx-8 px-4 md:px-8">
-        <div className="container flex h-14 items-center justify-between mx-auto px-0">
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-14 items-center justify-between mx-auto">
           <div className="flex items-center">
             <Smartphone className="h-6 w-6 mr-2 text-primary"/>
             <h1 className="text-2xl font-bold font-headline text-primary">
@@ -453,273 +453,274 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard title="Total Phones Ordered" value={stats.totalPhones.toString()} icon={Smartphone} />
-        <StatCard title="Total Invested" value={formatCurrency(stats.totalInvested)} icon={DollarSign} description={`After cashback: ${formatCurrency(stats.totalInvestedAfterCashback)}`}/>
-        <StatCard title="Total Received" value={formatCurrency(stats.totalReceived)} icon={TrendingUp} />
-        <StatCard title="Total Profit" value={formatCurrency(stats.totalProfit)} icon={TrendingUp} className="text-green-600" />
-        <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
-      </div>
+      <main className="flex-1 flex flex-col gap-8 p-4 md:p-8">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <StatCard title="Total Phones Ordered" value={stats.totalPhones.toString()} icon={Smartphone} />
+          <StatCard title="Total Invested" value={formatCurrency(stats.totalInvested)} icon={DollarSign} description={`After cashback: ${formatCurrency(stats.totalInvestedAfterCashback)}`}/>
+          <StatCard title="Total Received" value={formatCurrency(stats.totalReceived)} icon={TrendingUp} />
+          <StatCard title="Total Profit" value={formatCurrency(stats.totalProfit)} icon={TrendingUp} className="text-green-600" />
+          <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
+        </div>
 
-      <Card className="shadow-lg">
-        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <CardTitle>FoneFlow Hub</CardTitle>
-           <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap">
-             <div className="flex gap-2 justify-center flex-wrap">
-              {isAdmin && <>
-                <Button variant="destructive" onClick={handleResetData}><RotateCw className="mr-2 h-4 w-4" /> Reset Data</Button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
-                <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
-                <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export JSON</Button>
-              </>}
-              <Button variant="outline" onClick={handleExportPdf}><FileText className="mr-2 h-4 w-4" /> Export PDF</Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="orders">
-            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 mb-4">
-                <TabsList>
-                    <TabsTrigger value="orders">Orders</TabsTrigger>
-                    {isAdmin && <TabsTrigger value="transactions">Transactions</TabsTrigger>}
-                    {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
-                    <TabsTrigger value="cards">Credit Cards</TabsTrigger>
-                </TabsList>
-                 <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap w-full md:w-auto justify-end">
-                    <div className="flex gap-2 flex-wrap justify-center w-full md:w-auto">
-                        <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
-                        {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
-                        <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
-                        <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
-                    </div>
-                </div>
-            </div>
-            <TabsContent value="orders">
-              <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap mb-4">
-                <Popover>
-                    <PopoverTrigger asChild>
-                    <Button id="date" variant={"outline"} className="w-full sm:w-auto min-w-[240px] justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>) : (format(dateRange.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}
-                    </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2}/>
-                    </PopoverContent>
-                </Popover>
-                 {isAdmin && <Select value={userFilter} onValueChange={setUserFilter}>
-                    <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
-                        <Users className="mr-2 h-4 w-4" />
-                        <SelectValue placeholder="Filter by user" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Users</SelectItem>
-                        {users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
-                    </SelectContent>
-                </Select>}
-                <Select value={cardFilter} onValueChange={setCardFilter}>
-                    <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
-                        <CreditCardIcon className="mr-2 h-4 w-4" />
-                        <SelectValue placeholder="Filter by card" />
-                    </SelectTrigger>
-                    <SelectContent>
-                       <SelectItem value="all">All Cards</SelectItem>
-                       {cardsForFilter.map(card => <SelectItem key={card.id} value={card.id}>{card.name} (....{card.cardNumber.slice(-4)})</SelectItem>)}
-                    </SelectContent>
-                </Select>
-                 <Select value={dealerFilter} onValueChange={setDealerFilter}>
-                    <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
-                        <Landmark className="mr-2 h-4 w-4" />
-                        <SelectValue placeholder="Filter by dealer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {uniqueDealers.map(dealer => <SelectItem key={dealer} value={dealer}>{dealer === "all" ? "All Dealers" : dealer}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-                <Button variant="ghost" size="icon" onClick={resetFilters} title="Reset Filters"><XCircle className="h-4 w-4" /></Button>
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <CardTitle>FoneFlow Hub</CardTitle>
+            <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap">
+              <div className="flex gap-2 justify-center flex-wrap">
+                {isAdmin && <>
+                  <Button variant="destructive" onClick={handleResetData}><RotateCw className="mr-2 h-4 w-4" /> Reset Data</Button>
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+                  <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
+                  <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export JSON</Button>
+                </>}
+                <Button variant="outline" onClick={handleExportPdf}><FileText className="mr-2 h-4 w-4" /> Export PDF</Button>
               </div>
-              <OrderTable 
-                orders={filteredOrders} 
-                users={users} 
-                cards={cards}
-                onEditOrder={setOrderToEdit}
-                onDeleteOrder={setOrderToDelete}
-              />
-            </TabsContent>
-            {isAdmin && <TabsContent value="transactions">
-                <TransactionTable 
-                  transactions={transactions} 
-                  onEditTransaction={setTransactionToEdit} 
-                  onDeleteTransaction={setTransactionToDelete} 
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="orders">
+              <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 mb-4">
+                  <TabsList>
+                      <TabsTrigger value="orders">Orders</TabsTrigger>
+                      {isAdmin && <TabsTrigger value="transactions">Transactions</TabsTrigger>}
+                      {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
+                      <TabsTrigger value="cards">Credit Cards</TabsTrigger>
+                  </TabsList>
+                  <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap w-full md:w-auto justify-end">
+                      <div className="flex gap-2 flex-wrap justify-center w-full md:w-auto">
+                          <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
+                          {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
+                          <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
+                          <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
+                      </div>
+                  </div>
+              </div>
+              <TabsContent value="orders">
+                <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap mb-4">
+                  <Popover>
+                      <PopoverTrigger asChild>
+                      <Button id="date" variant={"outline"} className="w-full sm:w-auto min-w-[240px] justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>) : (format(dateRange.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}
+                      </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2}/>
+                      </PopoverContent>
+                  </Popover>
+                  {isAdmin && <Select value={userFilter} onValueChange={setUserFilter}>
+                      <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
+                          <Users className="mr-2 h-4 w-4" />
+                          <SelectValue placeholder="Filter by user" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="all">All Users</SelectItem>
+                          {users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
+                      </SelectContent>
+                  </Select>}
+                  <Select value={cardFilter} onValueChange={setCardFilter}>
+                      <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
+                          <CreditCardIcon className="mr-2 h-4 w-4" />
+                          <SelectValue placeholder="Filter by card" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Cards</SelectItem>
+                        {cardsForFilter.map(card => <SelectItem key={card.id} value={card.id}>{card.name} (....{card.cardNumber.slice(-4)})</SelectItem>)}
+                      </SelectContent>
+                  </Select>
+                  <Select value={dealerFilter} onValueChange={setDealerFilter}>
+                      <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
+                          <Landmark className="mr-2 h-4 w-4" />
+                          <SelectValue placeholder="Filter by dealer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {uniqueDealers.map(dealer => <SelectItem key={dealer} value={dealer}>{dealer === "all" ? "All Dealers" : dealer}</SelectItem>)}
+                      </SelectContent>
+                  </Select>
+                  <Button variant="ghost" size="icon" onClick={resetFilters} title="Reset Filters"><XCircle className="h-4 w-4" /></Button>
+                </div>
+                <OrderTable 
+                  orders={filteredOrders} 
+                  users={users} 
+                  cards={cards}
+                  onEditOrder={setOrderToEdit}
+                  onDeleteOrder={setOrderToDelete}
                 />
-            </TabsContent>}
-            {isAdmin && <TabsContent value="users">
-                <UserTable users={users} onEditUser={setUserToEdit} onDeleteUser={setUserToDelete} currentUser={currentUser} />
-            </TabsContent>}
-            <TabsContent value="cards">
-                <CardTable cards={cardsToDisplay} users={users} onEditCard={setCardToEdit} onDeleteCard={setCardToDelete} />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+              </TabsContent>
+              {isAdmin && <TabsContent value="transactions">
+                  <TransactionTable 
+                    transactions={transactions} 
+                    onEditTransaction={setTransactionToEdit} 
+                    onDeleteTransaction={setTransactionToDelete} 
+                  />
+              </TabsContent>}
+              {isAdmin && <TabsContent value="users">
+                  <UserTable users={users} onEditUser={setUserToEdit} onDeleteUser={setUserToDelete} currentUser={currentUser} />
+              </TabsContent>}
+              <TabsContent value="cards">
+                  <CardTable cards={cardsToDisplay} users={users} onEditCard={setCardToEdit} onDeleteCard={setCardToDelete} />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
 
-       {orderToEdit && (
-        <AddOrderDialog
-          isOpen={!!orderToEdit}
-          onOpenChange={(isOpen) => !isOpen && setOrderToEdit(null)}
-          onAddOrder={handleAddOrder}
-          users={usersForFilter}
-          cards={cards}
-          order={orderToEdit}
-          currentUser={currentUser}
-        />
-      )}
+        {orderToEdit && (
+          <AddOrderDialog
+            isOpen={!!orderToEdit}
+            onOpenChange={(isOpen) => !isOpen && setOrderToEdit(null)}
+            onAddOrder={handleAddOrder}
+            users={usersForFilter}
+            cards={cards}
+            order={orderToEdit}
+            currentUser={currentUser}
+          />
+        )}
 
-      {orderToDelete && (
-         <AlertDialog open={!!orderToDelete} onOpenChange={(isOpen) => !isOpen && setOrderToDelete(null)}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the order for the {orderToDelete.model}.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleDeleteOrder(orderToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-         </AlertDialog>
-      )}
-      
-      {transactionToEdit && (
-        <AddTransactionDialog
-          isOpen={!!transactionToEdit}
-          onOpenChange={(isOpen) => !isOpen && setTransactionToEdit(null)}
-          onAddTransaction={handleAddTransaction}
-          transaction={transactionToEdit}
-        />
-      )}
+        {orderToDelete && (
+          <AlertDialog open={!!orderToDelete} onOpenChange={(isOpen) => !isOpen && setOrderToDelete(null)}>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the order for the {orderToDelete.model}.
+                  </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleDeleteOrder(orderToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+          </AlertDialog>
+        )}
+        
+        {transactionToEdit && (
+          <AddTransactionDialog
+            isOpen={!!transactionToEdit}
+            onOpenChange={(isOpen) => !isOpen && setTransactionToEdit(null)}
+            onAddTransaction={handleAddTransaction}
+            transaction={transactionToEdit}
+          />
+        )}
 
-      {transactionToDelete && (
-         <AlertDialog open={!!transactionToDelete} onOpenChange={(isOpen) => !isOpen && setTransactionToDelete(null)}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the transaction from {transactionToDelete.dealer} of {formatCurrency(transactionToDelete.amount)}.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setTransactionToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleDeleteTransaction(transactionToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-         </AlertDialog>
-      )}
+        {transactionToDelete && (
+          <AlertDialog open={!!transactionToDelete} onOpenChange={(isOpen) => !isOpen && setTransactionToDelete(null)}>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the transaction from {transactionToDelete.dealer} of {formatCurrency(transactionToDelete.amount)}.
+                  </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setTransactionToDelete(null)}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleDeleteTransaction(transactionToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+          </AlertDialog>
+        )}
 
-      {userToEdit && (
-        <AddUserDialog
-          isOpen={!!userToEdit}
-          onOpenChange={(isOpen) => !isOpen && setUserToEdit(null)}
-          onAddUser={handleAddUser}
-          user={userToEdit}
-          currentUser={currentUser}
-        />
-      )}
+        {userToEdit && (
+          <AddUserDialog
+            isOpen={!!userToEdit}
+            onOpenChange={(isOpen) => !isOpen && setUserToEdit(null)}
+            onAddUser={handleAddUser}
+            user={userToEdit}
+            currentUser={currentUser}
+          />
+        )}
 
-       {userToDelete && (
-         <AlertDialog open={!!userToDelete} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the user {userToDelete.name}.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleDeleteUser(userToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-         </AlertDialog>
-      )}
+        {userToDelete && (
+          <AlertDialog open={!!userToDelete} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the user {userToDelete.name}.
+                  </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleDeleteUser(userToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+          </AlertDialog>
+        )}
 
-       {cardToEdit && (
-        <AddCardDialog
-          isOpen={!!cardToEdit}
-          onOpenChange={(isOpen) => !isOpen && setCardToEdit(null)}
-          onAddCard={handleAddCard}
-          users={usersForFilter}
-          card={cardToEdit}
-        />
-      )}
+        {cardToEdit && (
+          <AddCardDialog
+            isOpen={!!cardToEdit}
+            onOpenChange={(isOpen) => !isOpen && setCardToEdit(null)}
+            onAddCard={handleAddCard}
+            users={usersForFilter}
+            card={cardToEdit}
+          />
+        )}
 
-       {cardToDelete && (
-         <AlertDialog open={!!cardToDelete} onOpenChange={(isOpen) => !isOpen && setCardToDelete(null)}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the card {cardToDelete.name} (....{cardToDelete.cardNumber.slice(-4)}).
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setCardToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleDeleteCard(cardToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-         </AlertDialog>
-      )}
+        {cardToDelete && (
+          <AlertDialog open={!!cardToDelete} onOpenChange={(isOpen) => !isOpen && setCardToDelete(null)}>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the card {cardToDelete.name} (....{cardToDelete.cardNumber.slice(-4)}).
+                  </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setCardToDelete(null)}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleDeleteCard(cardToDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+          </AlertDialog>
+        )}
 
-      {isAdmin && <AlertDialog open={isImportAlertOpen} onOpenChange={setImportAlertOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to import data?</AlertDialogTitle>
-            <AlertDialogDescription>
-                This will overwrite all existing data (orders, users, cards, and transactions). This action cannot be undone.
-            </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingFile(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleImportConfirm}>Import Data</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-       </AlertDialog>}
+        {isAdmin && <AlertDialog open={isImportAlertOpen} onOpenChange={setImportAlertOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure you want to import data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                  This will overwrite all existing data (orders, users, cards, and transactions). This action cannot be undone.
+              </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPendingFile(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleImportConfirm}>Import Data</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>}
 
-      <AlertDialog open={isResetAlertOpen} onOpenChange={setResetAlertOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-                This action will permanently delete all orders, cards, transactions, and users (except for the default admin). This cannot be undone.
-            </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmResetData} variant="destructive">Reset Data</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={isResetAlertOpen} onOpenChange={setResetAlertOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                  This action will permanently delete all orders, cards, transactions, and users (except for the default admin). This cannot be undone.
+              </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmResetData} variant="destructive">Reset Data</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <AlertDialog open={isLogoutAlertOpen} onOpenChange={setLogoutAlertOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
-            <AlertDialogDescription>
-                You will be returned to the login screen.
-            </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmLogout}>Log Out</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-       <footer className="container py-4 text-center text-sm text-muted-foreground">
-         <p>Built for mobile resellers. FoneFlow 2024.</p>
-       </footer>
+        <AlertDialog open={isLogoutAlertOpen} onOpenChange={setLogoutAlertOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
+              <AlertDialogDescription>
+                  You will be returned to the login screen.
+              </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmLogout}>Log Out</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </main>
+      <footer className="container py-4 text-center text-sm text-muted-foreground">
+        <p>Built for mobile resellers. FoneFlow 2024.</p>
+      </footer>
     </div>
   )
 }
