@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, LogIn, Mail } from "lucide-react";
+import { Smartphone, LogIn } from "lucide-react";
 import type { User as UserType } from "@/lib/types";
 
 const loginSchema = z.object({
@@ -31,22 +31,29 @@ const defaultAdminUser: UserType = {
 
 export default function LoginPage() {
   const [currentUser, setCurrentUser] = useLocalStorage<UserType | null>('foneflow-currentUser', null);
-  const [users, setUsers] = useLocalStorage<UserType[]>('foneflow-users', [defaultAdminUser]);
+  const [users, setUsers] = useLocalStorage<UserType[]>('foneflow-users', []);
   const router = useRouter();
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
   
-  // Ensure default admin exists
+  // Ensure default admin exists on client
   useEffect(() => {
-    const adminExists = users.some(u => u.email === defaultAdminUser.email);
-    if (!adminExists) {
-        setUsers(prev => [...prev.filter(u => u.email !== defaultAdminUser.email), defaultAdminUser]);
+    if (isClient) {
+        const adminExists = users.some(u => u.email === defaultAdminUser.email);
+        if (!adminExists) {
+            setUsers(prev => [...prev, defaultAdminUser]);
+        }
     }
-  }, [setUsers, users]);
+  }, [isClient, setUsers, users]);
 
 
   useEffect(() => {
@@ -68,6 +75,14 @@ export default function LoginPage() {
         variant: "destructive",
       });
     }
+  }
+
+  if (!isClient) {
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <p>Loading...</p>
+        </div>
+    );
   }
 
   return (
