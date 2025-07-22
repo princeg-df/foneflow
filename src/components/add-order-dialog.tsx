@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon, PlusCircle } from "lucide-react"
-import type { Order } from "@/lib/types"
+import type { Order, User, CreditCard } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -31,6 +31,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -41,7 +48,8 @@ const orderSchema = z.object({
   orderDate: z.date({ required_error: "Order date is required." }),
   orderedPrice: z.coerce.number().min(0, "Price must be a positive number"),
   cashback: z.coerce.number().min(0, "Cashback must be a positive number").optional().default(0),
-  card: z.string().min(2, "Credit card is required"),
+  userId: z.string({ required_error: "User is required." }),
+  cardId: z.string({ required_error: "Credit card is required." }),
   deliveryDate: z.date().optional(),
   sellingPrice: z.coerce.number().min(0).optional(),
   dealer: z.string().optional(),
@@ -51,9 +59,11 @@ type OrderFormValues = z.infer<typeof orderSchema>
 
 interface AddOrderDialogProps {
   onAddOrder: (order: Order) => void
+  users: User[]
+  cards: CreditCard[]
 }
 
-export default function AddOrderDialog({ onAddOrder }: AddOrderDialogProps) {
+export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -63,9 +73,11 @@ export default function AddOrderDialog({ onAddOrder }: AddOrderDialogProps) {
         model: "",
         variant: "",
         cashback: 0,
-        card: "",
     },
   })
+  
+  const selectedUserId = form.watch("userId");
+  const filteredCards = cards.filter(card => card.userId === selectedUserId);
 
   function onSubmit(data: OrderFormValues) {
     const newOrder: Order = {
@@ -88,7 +100,7 @@ export default function AddOrderDialog({ onAddOrder }: AddOrderDialogProps) {
       <DialogTrigger asChild>
         <Button>
           <PlusCircle className="mr-2 h-4 w-4" />
-          Add Phone Order
+          Add Order
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -116,6 +128,42 @@ export default function AddOrderDialog({ onAddOrder }: AddOrderDialogProps) {
                 </FormItem>
               )}
             />
+            <FormField control={form.control} name="userId" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>User</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a user" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {users.map(user => (
+                            <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+            )} />
+            <FormField control={form.control} name="cardId" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Credit Card</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedUserId}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a card" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {filteredCards.map(card => (
+                            <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+            )} />
             <FormField control={form.control} name="orderDate" render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Order Date</FormLabel>
@@ -148,14 +196,6 @@ export default function AddOrderDialog({ onAddOrder }: AddOrderDialogProps) {
                 <FormItem>
                   <FormLabel>Cashback</FormLabel>
                   <FormControl><Input type="number" step="0.01" placeholder="e.g., 50" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField control={form.control} name="card" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Credit Card Used</FormLabel>
-                  <FormControl><Input placeholder="e.g., Amex Gold" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}

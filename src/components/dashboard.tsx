@@ -1,18 +1,31 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import type { Order } from "@/lib/types"
+import type { Order, User, CreditCard } from "@/lib/types"
 import StatCard from "@/components/stat-card"
 import OrderTable from "@/components/order-table"
 import AddOrderDialog from "@/components/add-order-dialog"
+import AddUserDialog from "@/components/add-user-dialog"
+import AddCardDialog from "@/components/add-card-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard, Users, Filter, XCircle } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, Filter, XCircle } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
 import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
+
+const initialUsers: User[] = [
+    { id: 'user1', name: 'Alice' },
+    { id: 'user2', name: 'Bob' },
+]
+
+const initialCards: CreditCard[] = [
+    { id: 'card1', name: 'Amex Gold', userId: 'user1' },
+    { id: 'card2', name: 'Chase Sapphire', userId: 'user1' },
+    { id: 'card3', name: 'Citi Double Cash', userId: 'user2' },
+]
 
 const initialOrders: Order[] = [
     {
@@ -22,7 +35,8 @@ const initialOrders: Order[] = [
       orderDate: new Date('2023-09-15'),
       orderedPrice: 1099,
       cashback: 50,
-      card: 'Amex Gold',
+      cardId: 'card1',
+      userId: 'user1',
       deliveryDate: new Date('2023-09-22'),
       sellingPrice: 1300,
       dealer: 'Local Shop',
@@ -34,7 +48,8 @@ const initialOrders: Order[] = [
       orderDate: new Date('2024-01-20'),
       orderedPrice: 1299,
       cashback: 100,
-      card: 'Chase Sapphire',
+      cardId: 'card2',
+      userId: 'user1',
       deliveryDate: new Date('2024-01-28'),
       sellingPrice: 1450,
       dealer: 'Online Marketplace',
@@ -46,7 +61,8 @@ const initialOrders: Order[] = [
       orderDate: new Date('2023-10-10'),
       orderedPrice: 999,
       cashback: 0,
-      card: 'Amex Gold',
+      cardId: 'card1',
+      userId: 'user1',
       deliveryDate: new Date('2023-10-18'),
       sellingPrice: 1050,
       dealer: 'Local Shop',
@@ -58,33 +74,51 @@ const initialOrders: Order[] = [
       orderDate: new Date('2024-02-01'),
       orderedPrice: 799,
       cashback: 25,
-      card: 'Citi Double Cash',
+      cardId: 'card3',
+      userId: 'user2',
       deliveryDate: new Date('2024-02-08'),
     },
 ];
 
 export default function Dashboard() {
   const [orders, setOrders] = useState<Order[]>(initialOrders)
+  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [cards, setCards] = useState<CreditCard[]>(initialCards);
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+  const [userFilter, setUserFilter] = useState<string>("all")
   const [cardFilter, setCardFilter] = useState<string>("all")
   const [dealerFilter, setDealerFilter] = useState<string>("all")
 
   const handleAddOrder = (order: Order) => {
     setOrders((prev) => [order, ...prev])
   }
+  
+  const handleAddUser = (user: User) => {
+    setUsers((prev) => [user, ...prev]);
+  };
 
-  const uniqueCards = useMemo(() => ["all", ...Array.from(new Set(orders.map(o => o.card)))], [orders])
+  const handleAddCard = (card: CreditCard) => {
+    setCards((prev) => [card, ...prev]);
+  };
+
   const uniqueDealers = useMemo(() => ["all", ...Array.from(new Set(orders.filter(o => o.dealer).map(o => o.dealer!)))], [orders])
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
       const orderDate = order.orderDate;
       const inDateRange = !dateRange || (!dateRange.from || (isAfter(orderDate, dateRange.from) || isEqual(orderDate, dateRange.from))) && (!dateRange.to || (isBefore(orderDate, dateRange.to) || isEqual(orderDate, dateRange.to)));
-      const cardMatch = cardFilter === "all" || order.card === cardFilter;
+      const userMatch = userFilter === 'all' || order.userId === userFilter;
+      const cardMatch = cardFilter === "all" || order.cardId === cardFilter;
       const dealerMatch = dealerFilter === "all" || order.dealer === dealerFilter;
-      return inDateRange && cardMatch && dealerMatch;
+      return inDateRange && userMatch && cardMatch && dealerMatch;
     });
-  }, [orders, dateRange, cardFilter, dealerFilter]);
+  }, [orders, dateRange, userFilter, cardFilter, dealerFilter]);
+
+  const cardsForFilter = useMemo(() => {
+    if (userFilter === 'all') return cards;
+    return cards.filter(c => c.userId === userFilter);
+  }, [cards, userFilter]);
 
   const stats = useMemo(() => {
     const soldOrders = filteredOrders.filter(o => o.sellingPrice);
@@ -108,6 +142,7 @@ export default function Dashboard() {
 
   const resetFilters = () => {
     setDateRange(undefined);
+    setUserFilter("all");
     setCardFilter("all");
     setDealerFilter("all");
   };
@@ -138,13 +173,24 @@ export default function Dashboard() {
                     <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2}/>
                     </PopoverContent>
                 </Popover>
+                 <Select value={userFilter} onValueChange={setUserFilter}>
+                    <SelectTrigger className="w-[180px]">
+                        <Users className="mr-2 h-4 w-4" />
+                        <SelectValue placeholder="Filter by user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Users</SelectItem>
+                        {users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
                 <Select value={cardFilter} onValueChange={setCardFilter}>
                     <SelectTrigger className="w-[180px]">
-                        <CreditCard className="mr-2 h-4 w-4" />
+                        <CreditCardIcon className="mr-2 h-4 w-4" />
                         <SelectValue placeholder="Filter by card" />
                     </SelectTrigger>
                     <SelectContent>
-                        {uniqueCards.map(card => <SelectItem key={card} value={card}>{card === "all" ? "All Cards" : card}</SelectItem>)}
+                       <SelectItem value="all">All Cards</SelectItem>
+                       {cardsForFilter.map(card => <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
                  <Select value={dealerFilter} onValueChange={setDealerFilter}>
@@ -158,11 +204,15 @@ export default function Dashboard() {
                 </Select>
                 <Button variant="ghost" size="icon" onClick={resetFilters}><XCircle className="h-4 w-4" /></Button>
             </div>
-            <AddOrderDialog onAddOrder={handleAddOrder} />
+            <div className="flex gap-2">
+              <AddOrderDialog onAddOrder={handleAddOrder} users={users} cards={cards} />
+              <AddUserDialog onAddUser={handleAddUser} />
+              <AddCardDialog onAddCard={handleAddCard} users={users}/>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <OrderTable orders={filteredOrders} />
+          <OrderTable orders={filteredOrders} users={users} cards={cards} />
         </CardContent>
       </Card>
     </div>
