@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
 import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
@@ -43,6 +43,14 @@ const initialCards: CreditCard[] = []
 const initialOrders: Order[] = [];
 
 const initialTransactions: Transaction[] = [];
+
+const defaultAdminUser: User = {
+  id: 'user_admin',
+  name: 'Prince',
+  email: 'princegupta619@gmail.com',
+  password: 'admin',
+  role: 'admin',
+};
 
 export default function Dashboard() {
   const [orders, setOrders] = useLocalStorage<Order[]>("foneflow-orders", initialOrders)
@@ -71,6 +79,7 @@ export default function Dashboard() {
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   
   const [isLogoutAlertOpen, setLogoutAlertOpen] = useState(false);
+  const [isResetAlertOpen, setResetAlertOpen] = useState(false);
   const { toast } = useToast()
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -93,7 +102,7 @@ export default function Dashboard() {
     if (uniqueUsers.length !== users.length) {
       setUsers(uniqueUsers);
     }
-  }, []); // Run only once on mount
+  }, [setUsers, users]);
   
   const isAdmin = currentUser?.role === 'admin';
 
@@ -266,6 +275,22 @@ export default function Dashboard() {
   const confirmLogout = () => {
     setCurrentUser(null)
     router.replace('/login');
+  }
+
+  const handleResetData = () => {
+    setResetAlertOpen(true);
+  }
+
+  const confirmResetData = () => {
+    setOrders([]);
+    setCards([]);
+    setTransactions([]);
+    setUsers([defaultAdminUser]);
+    setResetAlertOpen(false);
+    toast({
+      title: "Application Reset",
+      description: "All data has been cleared successfully.",
+    });
   }
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
@@ -442,6 +467,7 @@ export default function Dashboard() {
            <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap">
              <div className="flex gap-2 justify-center flex-wrap">
               {isAdmin && <>
+                <Button variant="destructive" onClick={handleResetData}><RotateCw className="mr-2 h-4 w-4" /> Reset Data</Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
                 <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
                 <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export JSON</Button>
@@ -660,6 +686,21 @@ export default function Dashboard() {
             </AlertDialogFooter>
         </AlertDialogContent>
        </AlertDialog>}
+
+      <AlertDialog open={isResetAlertOpen} onOpenChange={setResetAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action will permanently delete all orders, cards, transactions, and users (except for the default admin). This cannot be undone.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResetData} variant="destructive">Reset Data</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={isLogoutAlertOpen} onOpenChange={setLogoutAlertOpen}>
         <AlertDialogContent>

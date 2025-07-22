@@ -42,17 +42,11 @@ export default function LoginPage() {
   
   // Ensure default admin exists
   useEffect(() => {
-    const adminExists = users.some(u => u.role === 'admin' && u.email === defaultAdminUser.email);
+    const adminExists = users.some(u => u.email === defaultAdminUser.email);
     if (!adminExists) {
-      // Check if any other admin exists. If not, it's safe to add the default.
-      // Or, if we want to ensure THIS admin always exists, we can be more direct.
-      const defaultAdminInList = users.find(u => u.email === defaultAdminUser.email);
-      if (!defaultAdminInList) {
-          setUsers(prev => [...prev.filter(u => u.email !== defaultAdminUser.email), defaultAdminUser]);
-      }
+        setUsers(prev => [...prev.filter(u => u.email !== defaultAdminUser.email), defaultAdminUser]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setUsers]);
+  }, [setUsers, users]);
 
 
   useEffect(() => {
@@ -62,7 +56,7 @@ export default function LoginPage() {
   }, [currentUser, router]);
 
   function onSubmit(data: LoginFormValues) {
-    const user = users.find(u => u.email === data.email && u.password === data.password);
+    const user = users.find(u => u && u.email && u.email === data.email && u.password === data.password);
     if (user) {
       setCurrentUser(user);
       toast({ title: "Success", description: "Logged in successfully." });
