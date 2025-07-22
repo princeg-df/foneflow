@@ -468,7 +468,7 @@ export default function Dashboard() {
             <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap">
               <div className="flex gap-2 justify-center flex-wrap">
                 {isAdmin && <>
-                  <Button variant="destructive" onClick={handleResetData}><RotateCw className="mr-2 h-4 w-4" /> Reset Data</Button>
+                  <Button variant="outline" onClick={handleResetData}><RotateCw className="mr-2 h-4 w-4" /> Reset Data</Button>
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
                   <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
                   <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export JSON</Button>
