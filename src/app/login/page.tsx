@@ -44,10 +44,12 @@ export default function LoginPage() {
   useEffect(() => {
     const adminExists = users.some(u => u.role === 'admin' && u.email === defaultAdminUser.email);
     if (!adminExists) {
-        const otherAdmins = users.filter(u => u.role === 'admin');
-        if (otherAdmins.length === 0) {
-            setUsers(prev => [...prev, defaultAdminUser]);
-        }
+      // Check if any other admin exists. If not, it's safe to add the default.
+      // Or, if we want to ensure THIS admin always exists, we can be more direct.
+      const defaultAdminInList = users.find(u => u.email === defaultAdminUser.email);
+      if (!defaultAdminInList) {
+          setUsers(prev => [...prev.filter(u => u.email !== defaultAdminUser.email), defaultAdminUser]);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setUsers]);
