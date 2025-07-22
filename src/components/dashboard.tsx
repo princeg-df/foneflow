@@ -86,6 +86,14 @@ export default function Dashboard() {
       router.replace('/login');
     }
   }, [currentUser, router, isClient]);
+
+  useEffect(() => {
+    // Deduplicate users on mount
+    const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
+    if (uniqueUsers.length !== users.length) {
+      setUsers(uniqueUsers);
+    }
+  }, []); // Run only once on mount
   
   const isAdmin = currentUser?.role === 'admin';
 
