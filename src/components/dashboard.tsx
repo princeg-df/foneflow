@@ -308,21 +308,26 @@ export default function Dashboard() {
     doc.setFontSize(11);
     doc.text(`Report generated on: ${format(new Date(), "PPP")}`, 14, 30);
     
+    // Orders Table
     autoTable(doc, {
       startY: 40,
-      head: [['Model', 'User', 'Order Date', 'Price', 'Cashback', 'Net Cost', 'Selling Price', 'Profit']],
+      head: [['Model', 'User', 'Order Date', 'Delivery Date', 'Price', 'Cashback', 'Net Cost', 'Selling Price', 'Profit', 'Profit %', 'Status']],
       body: filteredOrders.map(o => {
-        const netCost = o.orderedPrice - o.cashback;
-        const profit = o.sellingPrice ? o.sellingPrice - netCost : 0;
+        const netCost = o.orderedPrice - (o.cashback || 0);
+        const profit = o.sellingPrice ? o.sellingPrice - netCost : undefined;
+        const profitPercentage = profit !== undefined && netCost > 0 ? (profit / netCost) * 100 : undefined;
         return [
           `${o.model}\n${o.variant}`,
           userMap.get(o.userId) || 'N/A',
           format(new Date(o.orderDate), "P"),
+          o.deliveryDate ? format(new Date(o.deliveryDate), "P") : 'N/A',
           formatCurrencyPdf(o.orderedPrice),
-          formatCurrencyPdf(o.cashback),
+          formatCurrencyPdf(o.cashback || 0),
           formatCurrencyPdf(netCost),
           o.sellingPrice ? formatCurrencyPdf(o.sellingPrice) : 'N/A',
-          o.sellingPrice ? formatCurrencyPdf(profit) : 'N/A',
+          profit !== undefined ? formatCurrencyPdf(profit) : 'N/A',
+          profitPercentage !== undefined ? `${profitPercentage.toFixed(2)}%` : 'N/A',
+          o.sellingPrice ? 'Sold' : 'In Stock'
         ];
       }),
       headStyles: { fillColor: [33, 150, 243] },
@@ -336,13 +341,15 @@ export default function Dashboard() {
 
     const lastTableY = (doc as any).lastAutoTable.finalY || 40;
     
+    // Transactions Table
     autoTable(doc, {
       startY: lastTableY + 20,
-      head: [['Date', 'Dealer', 'Amount', 'Description']],
+      head: [['Date', 'Dealer', 'Amount', 'Payment Mode', 'Description']],
       body: transactions.map(t => [
         format(new Date(t.date), "P"),
         t.dealer,
         formatCurrencyPdf(t.amount),
+        `${t.paymentMode}${t.onlinePaymentType ? ` (${t.onlinePaymentType.replace('_', ' ')})` : ''}`,
         t.description || 'N/A',
       ]),
       headStyles: { fillColor: [33, 150, 243] },
@@ -355,6 +362,7 @@ export default function Dashboard() {
     doc.save(`foneflow-report-${new Date().toISOString().split('T')[0]}.pdf`);
     toast({ title: "Success!", description: "PDF report exported successfully." });
   };
+
 
   const usersForFilter = isAdmin ? users : users.filter(u => u.id === currentUser?.id);
   const cardsToDisplay = isAdmin ? cards : cards.filter(c => c.userId === currentUser?.id);
