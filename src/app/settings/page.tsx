@@ -22,7 +22,7 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useLocalStorage<User | null>('foneflow-currentUser', null);
-  const [users, setUsers] = useLocalStorage<User[]>('foneflow-users', []);
+  const [, setUsers] = useLocalStorage<User[]>('foneflow-users', []);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -48,7 +48,11 @@ export default function SettingsPage() {
     
     const updatedUser = { ...currentUser, password: data.newPassword };
     setCurrentUser(updatedUser);
-    setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
+    
+    // Fetch users only when needed
+    const allUsers: User[] = JSON.parse(localStorage.getItem('foneflow-users') || '[]');
+    const updatedUsers = allUsers.map(u => u.id === currentUser.id ? updatedUser : u);
+    setUsers(updatedUsers);
 
     toast({
       title: "Success",
