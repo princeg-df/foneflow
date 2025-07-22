@@ -463,40 +463,42 @@ export default function Dashboard() {
         </div>
 
         <Card className="shadow-lg">
-          <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+           <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <CardTitle>FoneFlow Hub</CardTitle>
-            <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap">
-              <div className="flex gap-2 justify-center flex-wrap">
-                {isAdmin && <>
-                  <Button variant="outline" onClick={handleResetData}><RotateCw className="mr-2 h-4 w-4" /> Reset Data</Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
+              {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
+              <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
+              <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
+              {isAdmin && (
+                <>
+                  <Button variant="outline" onClick={handleResetData}>
+                    <RotateCw className="mr-2 h-4 w-4" /> Reset Data
+                  </Button>
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
-                  <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
-                  <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export JSON</Button>
-                </>}
-                <Button variant="outline" onClick={handleExportPdf}><FileText className="mr-2 h-4 w-4" /> Export PDF</Button>
-              </div>
+                  <Button variant="outline" onClick={handleImportClick}>
+                    <Upload className="mr-2 h-4 w-4" /> Import
+                  </Button>
+                  <Button variant="outline" onClick={handleExport}>
+                    <Download className="mr-2 h-4 w-4" /> Export JSON
+                  </Button>
+                </>
+              )}
+              <Button variant="outline" onClick={handleExportPdf}>
+                <FileText className="mr-2 h-4 w-4" /> Export PDF
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="orders">
-              <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 mb-4">
-                  <TabsList>
-                      <TabsTrigger value="orders">Orders</TabsTrigger>
-                      {isAdmin && <TabsTrigger value="transactions">Transactions</TabsTrigger>}
-                      {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
-                      <TabsTrigger value="cards">Credit Cards</TabsTrigger>
-                  </TabsList>
-                  <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap w-full md:w-auto justify-end">
-                      <div className="flex gap-2 flex-wrap justify-center w-full md:w-auto">
-                          <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
-                          {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
-                          <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
-                          <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
-                      </div>
-                  </div>
-              </div>
+              <TabsList>
+                  <TabsTrigger value="orders">Orders</TabsTrigger>
+                  {isAdmin && <TabsTrigger value="transactions">Transactions</TabsTrigger>}
+                  {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
+                  <TabsTrigger value="cards">Credit Cards</TabsTrigger>
+              </TabsList>
               <TabsContent value="orders">
-                <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap mb-4">
+                <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap my-4">
                   <Popover>
                       <PopoverTrigger asChild>
                       <Button id="date" variant={"outline"} className="w-full sm:w-auto min-w-[240px] justify-start text-left font-normal">
@@ -698,7 +700,7 @@ export default function Dashboard() {
               </AlertDialogHeader>
               <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmResetData} variant="destructive">Reset Data</AlertDialogAction>
+              <AlertDialogAction onClick={confirmResetData} variant="outline">Reset Data</AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
