@@ -82,7 +82,7 @@ export default function AddCardDialog({ onAddCard, users }: AddCardDialogProps) 
           Add Card
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add New Credit Card</DialogTitle>
           <DialogDescription>

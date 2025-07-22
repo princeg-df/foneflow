@@ -19,7 +19,7 @@ interface OrderTableProps {
 }
 
 export default function OrderTable({ orders, users, cards }: OrderTableProps) {
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount)
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)
   
   const userMap = new Map(users.map(u => [u.id, u.name]));
   const cardMap = new Map(cards.map(c => [c.id, `${c.name} (....${c.cardNumber.slice(-4)})`]));

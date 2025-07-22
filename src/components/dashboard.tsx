@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import type { Order, User, CreditCard } from "@/lib/types"
+import useLocalStorage from "@/hooks/use-local-storage"
 import StatCard from "@/components/stat-card"
 import OrderTable from "@/components/order-table"
 import AddOrderDialog from "@/components/add-order-dialog"
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, Filter, XCircle } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
 import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
@@ -81,9 +82,9 @@ const initialOrders: Order[] = [
 ];
 
 export default function Dashboard() {
-  const [orders, setOrders] = useState<Order[]>(initialOrders)
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [cards, setCards] = useState<CreditCard[]>(initialCards);
+  const [orders, setOrders] = useLocalStorage<Order[]>("foneflow-orders", initialOrders)
+  const [users, setUsers] = useLocalStorage<User[]>("foneflow-users", initialUsers);
+  const [cards, setCards] = useLocalStorage<CreditCard[]>("foneflow-cards", initialCards);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [userFilter, setUserFilter] = useState<string>("all")
@@ -119,6 +120,13 @@ export default function Dashboard() {
     if (userFilter === 'all') return cards;
     return cards.filter(c => c.userId === userFilter);
   }, [cards, userFilter]);
+  
+  // Reset card filter if the selected card doesn't belong to the selected user
+  useEffect(() => {
+    if(userFilter !== 'all' && cardFilter !== 'all' && !cardsForFilter.some(c => c.id === cardFilter)) {
+        setCardFilter('all');
+    }
+  }, [userFilter, cardFilter, cardsForFilter])
 
   const stats = useMemo(() => {
     const soldOrders = filteredOrders.filter(o => o.sellingPrice);
@@ -138,7 +146,7 @@ export default function Dashboard() {
     };
   }, [filteredOrders]);
 
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
 
   const resetFilters = () => {
     setDateRange(undefined);
@@ -149,7 +157,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard title="Total Phones Ordered" value={stats.totalPhones.toString()} icon={Smartphone} />
         <StatCard title="Total Invested" value={formatCurrency(stats.totalInvested)} icon={DollarSign} description={`After cashback: ${formatCurrency(stats.totalInvestedAfterCashback)}`}/>
         <StatCard title="Total Received" value={formatCurrency(stats.totalReceived)} icon={TrendingUp} />
@@ -160,11 +168,11 @@ export default function Dashboard() {
       <Card className="shadow-lg">
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <CardTitle>Orders Overview</CardTitle>
-          <div className="flex flex-col md:flex-row gap-2 items-center">
-            <div className="flex gap-2">
+          <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap">
+            <div className="flex gap-2 flex-wrap justify-center">
                 <Popover>
                     <PopoverTrigger asChild>
-                    <Button id="date" variant={"outline"} className="w-[260px] justify-start text-left font-normal">
+                    <Button id="date" variant={"outline"} className="w-full sm:w-auto min-w-[240px] justify-start text-left font-normal">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>) : (format(dateRange.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}
                     </Button>
@@ -174,7 +182,7 @@ export default function Dashboard() {
                     </PopoverContent>
                 </Popover>
                  <Select value={userFilter} onValueChange={setUserFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
                         <Users className="mr-2 h-4 w-4" />
                         <SelectValue placeholder="Filter by user" />
                     </SelectTrigger>
@@ -184,7 +192,7 @@ export default function Dashboard() {
                     </SelectContent>
                 </Select>
                 <Select value={cardFilter} onValueChange={setCardFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
                         <CreditCardIcon className="mr-2 h-4 w-4" />
                         <SelectValue placeholder="Filter by card" />
                     </SelectTrigger>
@@ -194,7 +202,7 @@ export default function Dashboard() {
                     </SelectContent>
                 </Select>
                  <Select value={dealerFilter} onValueChange={setDealerFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
                         <Users className="mr-2 h-4 w-4" />
                         <SelectValue placeholder="Filter by dealer" />
                     </SelectTrigger>
@@ -202,9 +210,9 @@ export default function Dashboard() {
                         {uniqueDealers.map(dealer => <SelectItem key={dealer} value={dealer}>{dealer === "all" ? "All Dealers" : dealer}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                <Button variant="ghost" size="icon" onClick={resetFilters}><XCircle className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={resetFilters} title="Reset Filters"><XCircle className="h-4 w-4" /></Button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 justify-center flex-wrap">
               <AddOrderDialog onAddOrder={handleAddOrder} users={users} cards={cards} />
               <AddUserDialog onAddUser={handleAddUser} />
               <AddCardDialog onAddCard={handleAddCard} users={users}/>
