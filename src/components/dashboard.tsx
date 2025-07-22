@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw, PlusCircle } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
 import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
@@ -502,17 +502,21 @@ export default function Dashboard() {
           <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
           <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Cashback</CardTitle>
-                 {isAdmin && <Select value={cashbackUserFilter} onValueChange={setCashbackUserFilter}>
-                      <SelectTrigger className="w-full sm:w-auto min-w-[120px] h-8 -my-2 text-xs">
-                          <Users className="mr-2 h-3 w-3" />
-                          <SelectValue placeholder="All Users" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          <SelectItem value="all">All Users</SelectItem>
-                          {users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
-                      </SelectContent>
-                  </Select>}
+              <CardTitle className="text-sm font-medium">Total Cashback</CardTitle>
+                {isAdmin && (
+                  <div className="w-[150px]">
+                    <Select value={cashbackUserFilter} onValueChange={setCashbackUserFilter}>
+                        <SelectTrigger className="h-8 text-xs">
+                            <Users className="mr-2 h-3 w-3" />
+                            <SelectValue placeholder="All Users" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Users</SelectItem>
+                            {users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </div>
+                 )}
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">{formatCurrency(userCashback)}</div>
@@ -527,15 +531,15 @@ export default function Dashboard() {
            <CardHeader>
             <div className="flex items-center justify-between flex-wrap gap-4">
               <CardTitle>FoneFlow Hub</CardTitle>
-               <div className="flex items-center gap-2 flex-wrap">
-                <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
-                {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
-                <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
-                <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
-              </div>
             </div>
           </CardHeader>
           <CardContent>
+            <div className="flex items-center gap-2 flex-wrap mb-4">
+              <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
+              {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
+              <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
+              <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
+            </div>
             <Tabs defaultValue="orders">
               <TabsList>
                   <TabsTrigger value="orders">Orders</TabsTrigger>
