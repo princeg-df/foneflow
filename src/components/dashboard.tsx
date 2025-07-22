@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import type { Order, User, CreditCard } from "@/lib/types"
 import useLocalStorage from "@/hooks/use-local-storage"
 import StatCard from "@/components/stat-card"
@@ -12,10 +12,21 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
 import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
+import { useToast } from "@/hooks/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const initialUsers: User[] = [
     { id: 'user1', name: 'Alice' },
@@ -90,6 +101,12 @@ export default function Dashboard() {
   const [userFilter, setUserFilter] = useState<string>("all")
   const [cardFilter, setCardFilter] = useState<string>("all")
   const [dealerFilter, setDealerFilter] = useState<string>("all")
+  
+  const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isImportAlertOpen, setImportAlertOpen] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+
 
   const handleAddOrder = (order: Order) => {
     setOrders((prev) => [order, ...prev])
@@ -102,6 +119,79 @@ export default function Dashboard() {
   const handleAddCard = (card: CreditCard) => {
     setCards((prev) => [card, ...prev]);
   };
+
+  const handleExport = () => {
+    const data = {
+      users,
+      cards,
+      orders,
+    };
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = `foneflow-data-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    toast({ title: "Success!", description: "Data exported successfully." });
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setPendingFile(file);
+      setImportAlertOpen(true);
+    }
+    // Reset the input value to allow re-uploading the same file
+    if(event.target) event.target.value = '';
+  };
+
+  const handleImportConfirm = () => {
+    if (!pendingFile) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+            throw new Error("File content is not a string.");
+        }
+        const data = JSON.parse(text);
+
+        // Basic validation
+        if (Array.isArray(data.users) && Array.isArray(data.cards) && Array.isArray(data.orders)) {
+          // The date reviver from useLocalStorage is not available here, so we do it manually
+          const parsedOrders = data.orders.map((o: any) => ({
+            ...o,
+            orderDate: new Date(o.orderDate),
+            deliveryDate: o.deliveryDate ? new Date(o.deliveryDate) : undefined,
+          }))
+
+          setUsers(data.users);
+          setCards(data.cards);
+          setOrders(parsedOrders);
+
+          toast({ title: "Success!", description: "Data imported successfully." });
+        } else {
+          throw new Error("Invalid JSON structure.");
+        }
+      } catch (error) {
+        console.error("Import failed:", error);
+        toast({
+          title: "Import Error",
+          description: "Failed to import data. Please check the file format.",
+          variant: "destructive",
+        });
+      } finally {
+        setImportAlertOpen(false);
+        setPendingFile(null);
+      }
+    };
+    reader.readAsText(pendingFile);
+  };
+
 
   const uniqueDealers = useMemo(() => ["all", ...Array.from(new Set(orders.filter(o => o.dealer).map(o => o.dealer!)))], [orders])
 
@@ -217,12 +307,33 @@ export default function Dashboard() {
               <AddUserDialog onAddUser={handleAddUser} />
               <AddCardDialog onAddCard={handleAddCard} users={users}/>
             </div>
+            <div className="flex gap-2 justify-center flex-wrap">
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+              <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
+              <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export</Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           <OrderTable orders={filteredOrders} users={users} cards={cards} />
         </CardContent>
       </Card>
+      <AlertDialog open={isImportAlertOpen} onOpenChange={setImportAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to import data?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This will overwrite all existing data (orders, users, and cards). This action cannot be undone.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingFile(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleImportConfirm}>Import Data</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+       </AlertDialog>
     </div>
   )
 }
+
+    
