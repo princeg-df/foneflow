@@ -60,7 +60,7 @@ export default function UserTable({ users, onEditUser, onDeleteUser, currentUser
                    <TableCell className="text-right">
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={currentUser?.id === user.id && user.role === 'admin'}>
+                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={currentUser?.id === user.id}>
                                 <span className="sr-only">Open menu</span>
                                 <MoreHorizontal className="h-4 w-4" />
                             </Button>
