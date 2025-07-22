@@ -36,69 +36,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-const initialUsers: User[] = [
-    { id: 'user_1', name: 'Alice' },
-    { id: 'user_2', name: 'Bob' },
-]
+const initialUsers: User[] = []
 
-const initialCards: CreditCard[] = [
-    { id: 'card_1', name: 'Amex Gold', cardNumber: '1111222233334444', userId: 'user_1' },
-    { id: 'card_2', name: 'Chase Sapphire', cardNumber: '5555666677778888', userId: 'user_1' },
-    { id: 'card_3', name: 'Citi Double Cash', cardNumber: '9999000011112222', userId: 'user_2' },
-]
+const initialCards: CreditCard[] = []
 
-const initialOrders: Order[] = [
-    {
-      id: 'order_1',
-      model: 'iPhone 15 Pro',
-      variant: '256GB Natural Titanium',
-      orderDate: new Date('2023-09-15'),
-      orderedPrice: 99900,
-      cashback: 5000,
-      cardId: 'card_1',
-      userId: 'user_1',
-      deliveryDate: new Date('2023-09-22'),
-      sellingPrice: 110000,
-      dealer: 'Local Shop',
-    },
-    {
-      id: 'order_2',
-      model: 'Samsung S24 Ultra',
-      variant: '512GB Black',
-      orderDate: new Date('2024-01-20'),
-      orderedPrice: 115000,
-      cashback: 10000,
-      cardId: 'card_2',
-      userId: 'user_1',
-      deliveryDate: new Date('2024-01-28'),
-      sellingPrice: 125000,
-      dealer: 'Online Marketplace',
-    },
-    {
-      id: 'order_3',
-      model: 'Pixel 8 Pro',
-      variant: '256GB Obsidian',
-      orderDate: new Date('2023-10-10'),
-      orderedPrice: 85000,
-      cashback: 0,
-      cardId: 'card_1',
-      userId: 'user_1',
-      deliveryDate: new Date('2023-10-18'),
-      sellingPrice: 90000,
-      dealer: 'Local Shop',
-    },
-    {
-      id: 'order_4',
-      model: 'iPhone 15',
-      variant: '128GB Blue',
-      orderDate: new Date('2024-02-01'),
-      orderedPrice: 72000,
-      cashback: 2500,
-      cardId: 'card_3',
-      userId: 'user_2',
-      deliveryDate: new Date('2024-02-08'),
-    },
-];
+const initialOrders: Order[] = [];
 
 const initialTransactions: Transaction[] = [];
 
@@ -107,7 +49,7 @@ export default function Dashboard() {
   const [users, setUsers] = useLocalStorage<User[]>("foneflow-users", initialUsers);
   const [cards, setCards] = useLocalStorage<CreditCard[]>("foneflow-cards", initialCards);
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>("foneflow-transactions", initialTransactions);
-  const [isAuthenticated] = useLocalStorage('foneflow-auth', false);
+  const [currentUser, setCurrentUser] = useLocalStorage<User | null>('foneflow-currentUser', null);
   const [isClient, setIsClient] = useState(false);
 
 
@@ -140,10 +82,12 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (isClient && !isAuthenticated) {
+    if (isClient && !currentUser) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router, isClient]);
+  }, [currentUser, router, isClient]);
+  
+  const isAdmin = currentUser?.role === 'admin';
 
   const handleAddOrder = (order: Order) => {
     setOrders((prev) => {
@@ -172,6 +116,16 @@ export default function Dashboard() {
   };
 
   const handleDeleteUser = (userId: string) => {
+    const userToDelete = users.find(u => u.id === userId);
+    if (userToDelete?.role === 'admin') {
+      const adminCount = users.filter(u => u.role === 'admin').length;
+      if(adminCount <= 1) {
+        toast({ title: "Error", description: "Cannot delete the last admin.", variant: "destructive" });
+        setUserToDelete(null);
+        return;
+      }
+    }
+
     const hasCards = cards.some(c => c.userId === userId);
     const hasOrders = orders.some(o => o.userId === userId);
     if(hasCards || hasOrders) {
@@ -302,7 +256,7 @@ export default function Dashboard() {
   };
   
   const confirmLogout = () => {
-    localStorage.removeItem('foneflow-auth');
+    setCurrentUser(null)
     router.replace('/login');
   }
 
@@ -366,24 +320,33 @@ export default function Dashboard() {
     toast({ title: "Success!", description: "PDF report exported successfully." });
   };
 
+  const usersForFilter = isAdmin ? users : users.filter(u => u.id === currentUser?.id);
+  const cardsToDisplay = isAdmin ? cards : cards.filter(c => c.userId === currentUser?.id);
 
-  const uniqueDealers = useMemo(() => ["all", ...Array.from(new Set(orders.filter(o => o.dealer).map(o => o.dealer!)))], [orders])
+  const uniqueDealers = useMemo(() => {
+    const relevantOrders = isAdmin ? orders : orders.filter(o => o.userId === currentUser?.id);
+    return ["all", ...Array.from(new Set(relevantOrders.filter(o => o.dealer).map(o => o.dealer!)))]
+  }, [orders, isAdmin, currentUser]);
 
   const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
+    // If not admin, only show user's own orders
+    const baseOrders = isAdmin ? orders : orders.filter(o => o.userId === currentUser?.id);
+
+    return baseOrders.filter(order => {
       const orderDate = new Date(order.orderDate);
       const inDateRange = !dateRange || (!dateRange.from || (isAfter(orderDate, dateRange.from) || isEqual(orderDate, dateRange.from))) && (!dateRange.to || (isBefore(orderDate, dateRange.to) || isEqual(orderDate, dateRange.to)));
+      // If admin is filtering for a user, use that filter. Otherwise, it's already pre-filtered for the current user.
       const userMatch = userFilter === 'all' || order.userId === userFilter;
       const cardMatch = cardFilter === "all" || order.cardId === cardFilter;
       const dealerMatch = dealerFilter === "all" || order.dealer === dealerFilter;
       return inDateRange && userMatch && cardMatch && dealerMatch;
     });
-  }, [orders, dateRange, userFilter, cardFilter, dealerFilter]);
+  }, [orders, dateRange, userFilter, cardFilter, dealerFilter, isAdmin, currentUser]);
 
   const cardsForFilter = useMemo(() => {
-    if (userFilter === 'all') return cards;
-    return cards.filter(c => c.userId === userFilter);
-  }, [cards, userFilter]);
+    if (userFilter === 'all') return cardsToDisplay;
+    return cardsToDisplay.filter(c => c.userId === userFilter);
+  }, [cardsToDisplay, userFilter]);
   
   useEffect(() => {
     if(userFilter !== 'all' && cardFilter !== 'all' && !cardsForFilter.some(c => c.id === cardFilter)) {
@@ -423,7 +386,7 @@ export default function Dashboard() {
     setDealerFilter("all");
   };
 
-  if (!isClient || !isAuthenticated) {
+  if (!isClient || !currentUser) {
     return (
       <div className="flex h-screen items-center justify-center">
         <p>Loading...</p>
@@ -441,7 +404,11 @@ export default function Dashboard() {
               FoneFlow
             </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+             <div className="text-right">
+                <p className="font-semibold">{currentUser.name}</p>
+                <p className="text-xs text-muted-foreground">{currentUser.role === 'admin' ? 'Administrator' : 'User'}</p>
+             </div>
             <Button variant="ghost" size="icon" onClick={() => router.push('/settings')}>
               <Settings className="h-5 w-5" />
               <span className="sr-only">Settings</span>
@@ -466,9 +433,11 @@ export default function Dashboard() {
           <CardTitle>FoneFlow Hub</CardTitle>
            <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap">
              <div className="flex gap-2 justify-center flex-wrap">
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
-              <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
-              <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export JSON</Button>
+              {isAdmin && <>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+                <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
+                <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export JSON</Button>
+              </>}
               <Button variant="outline" onClick={handleExportPdf}><FileText className="mr-2 h-4 w-4" /> Export PDF</Button>
             </div>
           </div>
@@ -478,16 +447,16 @@ export default function Dashboard() {
             <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 mb-4">
                 <TabsList>
                     <TabsTrigger value="orders">Orders</TabsTrigger>
-                    <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                    <TabsTrigger value="users">Users</TabsTrigger>
+                    {isAdmin && <TabsTrigger value="transactions">Transactions</TabsTrigger>}
+                    {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
                     <TabsTrigger value="cards">Credit Cards</TabsTrigger>
                 </TabsList>
                  <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap w-full md:w-auto justify-end">
                     <div className="flex gap-2 flex-wrap justify-center w-full md:w-auto">
-                        <AddOrderDialog onAddOrder={handleAddOrder} users={users} cards={cards} />
-                        <AddTransactionDialog onAddTransaction={handleAddTransaction} />
-                        <AddUserDialog onAddUser={handleAddUser} />
-                        <AddCardDialog onAddCard={handleAddCard} users={users}/>
+                        <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
+                        {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
+                        <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
+                        <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
                     </div>
                 </div>
             </div>
@@ -504,7 +473,7 @@ export default function Dashboard() {
                     <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2}/>
                     </PopoverContent>
                 </Popover>
-                 <Select value={userFilter} onValueChange={setUserFilter}>
+                 {isAdmin && <Select value={userFilter} onValueChange={setUserFilter}>
                     <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
                         <Users className="mr-2 h-4 w-4" />
                         <SelectValue placeholder="Filter by user" />
@@ -513,7 +482,7 @@ export default function Dashboard() {
                         <SelectItem value="all">All Users</SelectItem>
                         {users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
                     </SelectContent>
-                </Select>
+                </Select>}
                 <Select value={cardFilter} onValueChange={setCardFilter}>
                     <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
                         <CreditCardIcon className="mr-2 h-4 w-4" />
@@ -543,18 +512,18 @@ export default function Dashboard() {
                 onDeleteOrder={setOrderToDelete}
               />
             </TabsContent>
-            <TabsContent value="transactions">
+            {isAdmin && <TabsContent value="transactions">
                 <TransactionTable 
                   transactions={transactions} 
                   onEditTransaction={setTransactionToEdit} 
                   onDeleteTransaction={setTransactionToDelete} 
                 />
-            </TabsContent>
-            <TabsContent value="users">
-                <UserTable users={users} onEditUser={setUserToEdit} onDeleteUser={setUserToDelete} />
-            </TabsContent>
+            </TabsContent>}
+            {isAdmin && <TabsContent value="users">
+                <UserTable users={users} onEditUser={setUserToEdit} onDeleteUser={setUserToDelete} currentUser={currentUser} />
+            </TabsContent>}
             <TabsContent value="cards">
-                <CardTable cards={cards} users={users} onEditCard={setCardToEdit} onDeleteCard={setCardToDelete} />
+                <CardTable cards={cardsToDisplay} users={users} onEditCard={setCardToEdit} onDeleteCard={setCardToDelete} />
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -565,9 +534,10 @@ export default function Dashboard() {
           isOpen={!!orderToEdit}
           onOpenChange={(isOpen) => !isOpen && setOrderToEdit(null)}
           onAddOrder={handleAddOrder}
-          users={users}
+          users={usersForFilter}
           cards={cards}
           order={orderToEdit}
+          currentUser={currentUser}
         />
       )}
 
@@ -620,6 +590,7 @@ export default function Dashboard() {
           onOpenChange={(isOpen) => !isOpen && setUserToEdit(null)}
           onAddUser={handleAddUser}
           user={userToEdit}
+          currentUser={currentUser}
         />
       )}
 
@@ -645,7 +616,7 @@ export default function Dashboard() {
           isOpen={!!cardToEdit}
           onOpenChange={(isOpen) => !isOpen && setCardToEdit(null)}
           onAddCard={handleAddCard}
-          users={users}
+          users={usersForFilter}
           card={cardToEdit}
         />
       )}
@@ -667,7 +638,7 @@ export default function Dashboard() {
          </AlertDialog>
       )}
 
-      <AlertDialog open={isImportAlertOpen} onOpenChange={setImportAlertOpen}>
+      {isAdmin && <AlertDialog open={isImportAlertOpen} onOpenChange={setImportAlertOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to import data?</AlertDialogTitle>
@@ -680,7 +651,7 @@ export default function Dashboard() {
             <AlertDialogAction onClick={handleImportConfirm}>Import Data</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
-       </AlertDialog>
+       </AlertDialog>}
 
       <AlertDialog open={isLogoutAlertOpen} onOpenChange={setLogoutAlertOpen}>
         <AlertDialogContent>

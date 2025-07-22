@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Save, ArrowLeft, User } from "lucide-react";
+import { Save, ArrowLeft } from "lucide-react";
+import type { User } from "@/lib/types";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -20,8 +21,8 @@ const passwordSchema = z.object({
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsPage() {
-  const [storedPassword, setStoredPassword] = useLocalStorage('foneflow-password', 'admin');
-  const [storedUsername, setStoredUsername] = useLocalStorage('foneflow-username', 'Prince');
+  const [currentUser, setCurrentUser] = useLocalStorage<User | null>('foneflow-currentUser', null);
+  const [users, setUsers] = useLocalStorage<User[]>('foneflow-users', []);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -30,8 +31,13 @@ export default function SettingsPage() {
     defaultValues: { currentPassword: "", newPassword: "" },
   });
 
+  if (!currentUser) {
+      router.replace('/login');
+      return null;
+  }
+
   function onSubmit(data: PasswordFormValues) {
-    if (data.currentPassword !== storedPassword) {
+    if (data.currentPassword !== currentUser?.password) {
       toast({
         title: "Error",
         description: "Incorrect current password.",
@@ -39,7 +45,11 @@ export default function SettingsPage() {
       });
       return;
     }
-    setStoredPassword(data.newPassword);
+    
+    const updatedUser = { ...currentUser, password: data.newPassword };
+    setCurrentUser(updatedUser);
+    setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
+
     toast({
       title: "Success",
       description: "Password updated successfully.",
@@ -52,7 +62,7 @@ export default function SettingsPage() {
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader>
           <CardTitle className="text-2xl">Settings</CardTitle>
-          <CardDescription>Change your application password here. Your username is <span className="font-semibold text-primary">{storedUsername}</span>.</CardDescription>
+          <CardDescription>Change your application password here. Your username is <span className="font-semibold text-primary">{currentUser.name}</span>.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

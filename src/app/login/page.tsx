@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Smartphone, LogIn, User } from "lucide-react";
+import type { User as UserType } from "@/lib/types";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -20,10 +21,16 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const defaultAdminUser: UserType = {
+  id: 'user_admin',
+  name: 'Prince',
+  password: 'admin',
+  role: 'admin',
+};
+
 export default function LoginPage() {
-  const [isAuthenticated, setIsAuthenticated] = useLocalStorage('foneflow-auth', false);
-  const [storedUsername, setStoredUsername] = useLocalStorage('foneflow-username', 'Prince');
-  const [storedPassword, setStoredPassword] = useLocalStorage('foneflow-password', 'admin'); // Default password
+  const [currentUser, setCurrentUser] = useLocalStorage<UserType | null>('foneflow-currentUser', null);
+  const [users, setUsers] = useLocalStorage<UserType[]>('foneflow-users', []);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -31,16 +38,26 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
     defaultValues: { username: "", password: "" },
   });
+  
+  // Ensure default admin exists
+  useEffect(() => {
+    const adminExists = users.some(u => u.role === 'admin');
+    if (!adminExists) {
+        setUsers(prev => [...prev, defaultAdminUser]);
+    }
+  }, [users, setUsers]);
+
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (currentUser) {
       router.replace('/');
     }
-  }, [isAuthenticated, router]);
+  }, [currentUser, router]);
 
   function onSubmit(data: LoginFormValues) {
-    if (data.username === storedUsername && data.password === storedPassword) {
-      setIsAuthenticated(true);
+    const user = users.find(u => u.name === data.username && u.password === data.password);
+    if (user) {
+      setCurrentUser(user);
       toast({ title: "Success", description: "Logged in successfully." });
       router.push('/');
     } else {
@@ -102,7 +119,7 @@ export default function LoginPage() {
         </CardContent>
       </Card>
       <p className="mt-8 text-sm text-muted-foreground text-center">
-        Default username is <span className="font-bold">{storedUsername}</span> and password is 'admin'.<br/> You can change the password in settings.
+        Default admin username is <span className="font-bold">Prince</span> and password is <span className="font-bold">admin</span>.
       </p>
     </div>
   );

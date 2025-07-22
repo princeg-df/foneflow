@@ -26,9 +26,12 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const userSchema = z.object({
   name: z.string().min(2, "Name is required"),
+  password: z.string().min(4, "Password must be at least 4 characters long"),
+  role: z.enum(["admin", "user"]),
 })
 
 type UserFormValues = z.infer<typeof userSchema>
@@ -38,9 +41,10 @@ interface AddUserDialogProps {
   user?: User | null;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  currentUser: User | null;
 }
 
-export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange }: AddUserDialogProps) {
+export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, currentUser }: AddUserDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const { toast } = useToast()
 
@@ -52,14 +56,14 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange }:
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
-    defaultValues: isEditMode ? { name: user.name } : { name: "" },
+    defaultValues: isEditMode ? { name: user.name, password: user.password, role: user.role } : { name: "", password: "", role: "user" },
   })
   
   useEffect(() => {
     if (user) {
-      form.reset({ name: user.name });
+      form.reset({ name: user.name, password: user.password, role: user.role });
     } else {
-      form.reset({ name: "" });
+      form.reset({ name: "", password: "", role: "user" });
     }
   }, [user, form]);
 
@@ -82,8 +86,8 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange }:
 
   const dialogTitle = isEditMode ? "Edit User" : "Add New User";
   const dialogDescription = isEditMode
-    ? "Update the name of the user."
-    : "Enter the name of the new user.";
+    ? "Update the details of the user."
+    : "Enter the details of the new user.";
   const buttonText = isEditMode ? "Save Changes" : "Save User";
 
   const TriggerButton = (
@@ -92,6 +96,10 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange }:
         Add User
     </Button>
   );
+
+  if (currentUser?.role !== 'admin') {
+      return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -110,6 +118,32 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange }:
                   <FormMessage />
                 </FormItem>
               )}
+            />
+            <FormField control={form.control} name="password" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl><Input type="password" placeholder="Enter password" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField control={form.control} name="role" render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                          <FormControl>
+                          <SelectTrigger>
+                              <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                      </Select>
+                      <FormMessage />
+                  </FormItem>
+              )} 
             />
             <DialogFooter>
                <Button type="submit">

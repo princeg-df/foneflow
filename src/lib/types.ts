@@ -15,6 +15,8 @@ export type Order = {
 export type User = {
     id: string;
     name: string;
+    password: string;
+    role: 'admin' | 'user';
 }
 
 export type CreditCard = {

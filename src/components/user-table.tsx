@@ -19,14 +19,16 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 
 interface UserTableProps {
   users: User[];
   onEditUser: (user: User) => void;
   onDeleteUser: (user: User) => void;
+  currentUser: User | null;
 }
 
-export default function UserTable({ users, onEditUser, onDeleteUser }: UserTableProps) {
+export default function UserTable({ users, onEditUser, onDeleteUser, currentUser }: UserTableProps) {
   return (
     <div className="rounded-md border">
       <Table>
@@ -34,13 +36,14 @@ export default function UserTable({ users, onEditUser, onDeleteUser }: UserTable
           <TableRow>
             <TableHead>User ID</TableHead>
             <TableHead>Name</TableHead>
+            <TableHead>Role</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {users.length === 0 ? (
              <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={4} className="h-24 text-center">
                 No users found.
                 </TableCell>
             </TableRow>
@@ -49,10 +52,15 @@ export default function UserTable({ users, onEditUser, onDeleteUser }: UserTable
                 <TableRow key={user.id}>
                   <TableCell className="font-medium text-muted-foreground">{user.id}</TableCell>
                   <TableCell>{user.name}</TableCell>
+                  <TableCell>
+                      <Badge variant={user.role === 'admin' ? "default" : "secondary"}>
+                          {user.role}
+                      </Badge>
+                  </TableCell>
                    <TableCell className="text-right">
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
+                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={currentUser?.id === user.id && user.role === 'admin'}>
                                 <span className="sr-only">Open menu</span>
                                 <MoreHorizontal className="h-4 w-4" />
                             </Button>

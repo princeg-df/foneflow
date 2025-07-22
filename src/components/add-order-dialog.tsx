@@ -65,9 +65,10 @@ interface AddOrderDialogProps {
   order?: Order | null
   isOpen?: boolean
   onOpenChange?: (open: boolean) => void
+  currentUser: User | null;
 }
 
-export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen, onOpenChange }: AddOrderDialogProps) {
+export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen, onOpenChange, currentUser }: AddOrderDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const { toast } = useToast()
 
@@ -75,6 +76,8 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
   
   const open = isOpen !== undefined ? isOpen : internalOpen;
   const setOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
+  
+  const defaultUserId = !isEditMode && currentUser?.role !== 'admin' ? currentUser?.id : undefined;
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderSchema),
@@ -90,6 +93,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
       variant: "",
       cashback: 0,
       dealer: "",
+      userId: defaultUserId,
     },
   })
 
@@ -107,7 +111,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
       form.reset({
         model: "",
         variant: "",
-        userId: undefined,
+        userId: defaultUserId,
         cardId: undefined,
         orderDate: undefined,
         deliveryDate: undefined,
@@ -117,7 +121,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
         dealer: "",
       });
     }
-  }, [order, form]);
+  }, [order, form, defaultUserId]);
   
   const selectedUserId = form.watch("userId");
   const filteredCards = cards.filter(card => card.userId === selectedUserId);
@@ -185,7 +189,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
               <FormField control={form.control} name="userId" render={({ field }) => (
                   <FormItem>
                       <FormLabel>User</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={currentUser?.role !== 'admin'}>
                           <FormControl>
                           <SelectTrigger>
                               <SelectValue placeholder="Select a user" />
