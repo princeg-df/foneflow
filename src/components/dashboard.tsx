@@ -5,11 +5,14 @@ import type { Order, User, CreditCard } from "@/lib/types"
 import useLocalStorage from "@/hooks/use-local-storage"
 import StatCard from "@/components/stat-card"
 import OrderTable from "@/components/order-table"
+import UserTable from "@/components/user-table"
+import CardTable from "@/components/card-table"
 import AddOrderDialog from "@/components/add-order-dialog"
 import AddUserDialog from "@/components/add-user-dialog"
 import AddCardDialog from "@/components/add-card-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload } from "lucide-react"
@@ -101,9 +104,16 @@ export default function Dashboard() {
   const [userFilter, setUserFilter] = useState<string>("all")
   const [cardFilter, setCardFilter] = useState<string>("all")
   const [dealerFilter, setDealerFilter] = useState<string>("all")
+  
   const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+  const [cardToEdit, setCardToEdit] = useState<CreditCard | null>(null);
+  const [cardToDelete, setCardToDelete] = useState<CreditCard | null>(null);
+
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isImportAlertOpen, setImportAlertOpen] = useState(false)
@@ -128,8 +138,43 @@ export default function Dashboard() {
     setUsers((prev) => [user, ...prev]);
   };
 
+  const handleUpdateUser = (updatedUser: User) => {
+    setUsers((prev) => prev.map(u => u.id === updatedUser.id ? updatedUser : o));
+    setUserToEdit(null);
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    const hasCards = cards.some(c => c.userId === userId);
+    const hasOrders = orders.some(o => o.userId === userId);
+    if(hasCards || hasOrders) {
+        toast({ title: "Error", description: "Cannot delete user with associated cards or orders.", variant: "destructive" });
+        setUserToDelete(null);
+        return;
+    }
+    setUsers((prev) => prev.filter(u => u.id !== userId));
+    setUserToDelete(null);
+    toast({ title: "Success!", description: "User deleted successfully." });
+  };
+
   const handleAddCard = (card: CreditCard) => {
     setCards((prev) => [card, ...prev]);
+  };
+
+  const handleUpdateCard = (updatedCard: CreditCard) => {
+    setCards((prev) => prev.map(c => c.id === updatedCard.id ? updatedCard : o));
+    setCardToEdit(null);
+  };
+
+  const handleDeleteCard = (cardId: string) => {
+    const hasOrders = orders.some(o => o.cardId === cardId);
+    if (hasOrders) {
+      toast({ title: "Error", description: "Cannot delete card with associated orders.", variant: "destructive" });
+      setCardToDelete(null);
+      return;
+    }
+    setCards((prev) => prev.filter(c => c.id !== cardId));
+    setCardToDelete(null);
+    toast({ title: "Success!", description: "Card deleted successfully." });
   };
 
   const handleExport = () => {
@@ -156,7 +201,6 @@ export default function Dashboard() {
       setPendingFile(file);
       setImportAlertOpen(true);
     }
-    // Reset the input value to allow re-uploading the same file
     if(event.target) event.target.value = '';
   };
 
@@ -172,9 +216,7 @@ export default function Dashboard() {
         }
         const data = JSON.parse(text);
 
-        // Basic validation
         if (Array.isArray(data.users) && Array.isArray(data.cards) && Array.isArray(data.orders)) {
-          // The date reviver from useLocalStorage is not available here, so we do it manually
           const parsedOrders = data.orders.map((o: any) => ({
             ...o,
             orderDate: new Date(o.orderDate),
@@ -223,7 +265,6 @@ export default function Dashboard() {
     return cards.filter(c => c.userId === userFilter);
   }, [cards, userFilter]);
   
-  // Reset card filter if the selected card doesn't belong to the selected user
   useEffect(() => {
     if(userFilter !== 'all' && cardFilter !== 'all' && !cardsForFilter.some(c => c.id === cardFilter)) {
         setCardFilter('all');
@@ -269,9 +310,33 @@ export default function Dashboard() {
 
       <Card className="shadow-lg">
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <CardTitle>Orders Overview</CardTitle>
-          <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap">
-            <div className="flex gap-2 flex-wrap justify-center">
+          <CardTitle>FoneFlow Hub</CardTitle>
+           <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap">
+             <div className="flex gap-2 justify-center flex-wrap">
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+              <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
+              <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export</Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="orders">
+            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 mb-4">
+                <TabsList>
+                    <TabsTrigger value="orders">Orders</TabsTrigger>
+                    <TabsTrigger value="users">Users</TabsTrigger>
+                    <TabsTrigger value="cards">Credit Cards</TabsTrigger>
+                </TabsList>
+                 <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap w-full md:w-auto justify-end">
+                    <div className="flex gap-2 flex-wrap justify-center w-full md:w-auto">
+                        <AddOrderDialog onAddOrder={handleAddOrder} users={users} cards={cards} />
+                        <AddUserDialog onAddUser={handleAddUser} />
+                        <AddCardDialog onAddCard={handleAddCard} users={users}/>
+                    </div>
+                </div>
+            </div>
+            <TabsContent value="orders">
+              <div className="flex flex-col md:flex-row gap-2 items-center flex-wrap mb-4">
                 <Popover>
                     <PopoverTrigger asChild>
                     <Button id="date" variant={"outline"} className="w-full sm:w-auto min-w-[240px] justify-start text-left font-normal">
@@ -313,27 +378,22 @@ export default function Dashboard() {
                     </SelectContent>
                 </Select>
                 <Button variant="ghost" size="icon" onClick={resetFilters} title="Reset Filters"><XCircle className="h-4 w-4" /></Button>
-            </div>
-            <div className="flex gap-2 justify-center flex-wrap">
-              <AddOrderDialog onAddOrder={handleAddOrder} users={users} cards={cards} />
-              <AddUserDialog onAddUser={handleAddUser} />
-              <AddCardDialog onAddCard={handleAddCard} users={users}/>
-            </div>
-            <div className="flex gap-2 justify-center flex-wrap">
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
-              <Button variant="outline" onClick={handleImportClick}><Upload className="mr-2 h-4 w-4" /> Import</Button>
-              <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export</Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <OrderTable 
-            orders={filteredOrders} 
-            users={users} 
-            cards={cards}
-            onEditOrder={setOrderToEdit}
-            onDeleteOrder={setOrderToDelete}
-          />
+              </div>
+              <OrderTable 
+                orders={filteredOrders} 
+                users={users} 
+                cards={cards}
+                onEditOrder={setOrderToEdit}
+                onDeleteOrder={setOrderToDelete}
+              />
+            </TabsContent>
+            <TabsContent value="users">
+                <UserTable users={users} onEditUser={setUserToEdit} onDeleteUser={setUserToDelete} />
+            </TabsContent>
+            <TabsContent value="cards">
+                <CardTable cards={cards} users={users} onEditCard={setCardToEdit} onDeleteCard={setCardToDelete} />
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -365,6 +425,59 @@ export default function Dashboard() {
          </AlertDialog>
       )}
 
+      {userToEdit && (
+        <AddUserDialog
+          isOpen={!!userToEdit}
+          onOpenChange={(isOpen) => !isOpen && setUserToEdit(null)}
+          onAddUser={handleUpdateUser}
+          user={userToEdit}
+        />
+      )}
+
+       {userToDelete && (
+         <AlertDialog open={!!userToDelete} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the user {userToDelete.name}.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleDeleteUser(userToDelete.id)}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+         </AlertDialog>
+      )}
+
+       {cardToEdit && (
+        <AddCardDialog
+          isOpen={!!cardToEdit}
+          onOpenChange={(isOpen) => !isOpen && setCardToEdit(null)}
+          onAddCard={handleUpdateCard}
+          users={users}
+          card={cardToEdit}
+        />
+      )}
+
+       {cardToDelete && (
+         <AlertDialog open={!!cardToDelete} onOpenChange={(isOpen) => !isOpen && setCardToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the card {cardToDelete.name} (....{cardToDelete.cardNumber.slice(-4)}).
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setCardToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleDeleteCard(cardToDelete.id)}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+         </AlertDialog>
+      )}
+
       <AlertDialog open={isImportAlertOpen} onOpenChange={setImportAlertOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
@@ -382,5 +495,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
-    
