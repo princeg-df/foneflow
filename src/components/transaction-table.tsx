@@ -1,6 +1,6 @@
 "use client"
 
-import type { Transaction } from "@/lib/types"
+import type { Transaction, CreditCard } from "@/lib/types"
 import {
   Table,
   TableBody,
@@ -24,12 +24,14 @@ import { Badge } from "@/components/ui/badge"
 
 interface TransactionTableProps {
   transactions: Transaction[];
+  cards: CreditCard[];
   onEditTransaction: (transaction: Transaction) => void;
   onDeleteTransaction: (transaction: Transaction) => void;
 }
 
-export default function TransactionTable({ transactions, onEditTransaction, onDeleteTransaction }: TransactionTableProps) {
+export default function TransactionTable({ transactions, cards, onEditTransaction, onDeleteTransaction }: TransactionTableProps) {
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)
+  const cardMap = new Map(cards.map(c => [c.id, `${c.name} (....${c.cardNumber.slice(-4)})`]));
 
   return (
     <div className="rounded-md border">
@@ -39,6 +41,7 @@ export default function TransactionTable({ transactions, onEditTransaction, onDe
             <TableHead>Date</TableHead>
             <TableHead>Dealer</TableHead>
             <TableHead>Description</TableHead>
+            <TableHead>Credit Card</TableHead>
             <TableHead>Payment Mode</TableHead>
             <TableHead className="text-right">Amount</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -47,7 +50,7 @@ export default function TransactionTable({ transactions, onEditTransaction, onDe
         <TableBody>
           {transactions.length === 0 ? (
              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                 No transactions found.
                 </TableCell>
             </TableRow>
@@ -57,6 +60,7 @@ export default function TransactionTable({ transactions, onEditTransaction, onDe
                   <TableCell>{format(new Date(transaction.date), 'MMM d, yyyy')}</TableCell>
                   <TableCell className="font-medium">{transaction.dealer}</TableCell>
                   <TableCell className="text-muted-foreground">{transaction.description || 'N/A'}</TableCell>
+                  <TableCell>{cardMap.get(transaction.cardId) || 'N/A'}</TableCell>
                   <TableCell>
                       <Badge variant="outline" className="capitalize">
                           {transaction.paymentMode}

@@ -35,4 +35,6 @@ export type Transaction = {
     description?: string;
     paymentMode: 'cash' | 'online';
     onlinePaymentType?: 'upi' | 'bank_transfer';
+    userId: string;
+    cardId: string;
 }

@@ -437,13 +437,24 @@ export default function Dashboard() {
   
   const creditCardBills = useMemo(() => {
     const bills = new Map<string, number>();
+    
+    // Calculate total spent on each card from orders
     cards.forEach(card => {
         const cardOrders = orders.filter(o => o.cardId === card.id);
         const totalSpent = cardOrders.reduce((sum, o) => sum + o.orderedPrice, 0);
         bills.set(card.id, totalSpent);
-    })
+    });
+
+    // Subtract payments made for each card from transactions
+    transactions.forEach(transaction => {
+        if (transaction.cardId && bills.has(transaction.cardId)) {
+            const currentBill = bills.get(transaction.cardId) || 0;
+            bills.set(transaction.cardId, currentBill - transaction.amount);
+        }
+    });
+
     return bills;
-  }, [orders, cards]);
+  }, [orders, cards, transactions]);
 
 
   const resetFilters = () => {
@@ -560,7 +571,7 @@ export default function Dashboard() {
                 <CardTitle>FoneFlow Hub</CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
                     <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
-                    {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} />}
+                    {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} users={usersForFilter} cards={cards} currentUser={currentUser} />}
                     <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
                     <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
                 </div>
@@ -629,6 +640,7 @@ export default function Dashboard() {
               {isAdmin && <TabsContent value="transactions">
                   <TransactionTable 
                     transactions={transactions} 
+                    cards={cards}
                     onEditTransaction={setTransactionToEdit} 
                     onDeleteTransaction={setTransactionToDelete} 
                   />
@@ -643,7 +655,7 @@ export default function Dashboard() {
                            <Card>
                              <CardHeader>
                                 <CardTitle>Credit Card Bills</CardTitle>
-                                <CardDescription>Total amount spent on each credit card for orders.</CardDescription>
+                                <CardDescription>Total amount spent on each credit card for orders, minus any payments received.</CardDescription>
                              </CardHeader>
                              <CardContent>
                                 <Table>
@@ -728,6 +740,9 @@ export default function Dashboard() {
             onOpenChange={(isOpen) => !isOpen && setTransactionToEdit(null)}
             onAddTransaction={handleAddTransaction}
             transaction={transactionToEdit}
+            users={usersForFilter}
+            cards={cards}
+            currentUser={currentUser}
           />
         )}
 
