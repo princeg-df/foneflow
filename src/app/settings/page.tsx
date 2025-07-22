@@ -1,5 +1,7 @@
+
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, Loader2 } from "lucide-react";
 import type { User } from "@/lib/types";
 
 const passwordSchema = z.object({
@@ -22,6 +24,7 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useLocalStorage<User | null>('foneflow-currentUser', null);
+  const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -36,26 +39,26 @@ export default function SettingsPage() {
   }
 
   function onSubmit(data: PasswordFormValues) {
+    setIsSaving(true);
     if (data.currentPassword !== currentUser?.password) {
       toast({
         title: "Error",
         description: "Incorrect current password.",
         variant: "destructive",
       });
+      setIsSaving(false);
       return;
     }
     
     const updatedUser = { ...currentUser, password: data.newPassword };
-    setCurrentUser(updatedUser);
     
-    // Read/write directly to localStorage to avoid slow hook initialization
     try {
         const usersRaw = localStorage.getItem('foneflow-users');
         if (usersRaw) {
             const allUsers: User[] = JSON.parse(usersRaw);
             const updatedUsers = allUsers.map(u => u.id === currentUser.id ? updatedUser : u);
             localStorage.setItem('foneflow-users', JSON.stringify(updatedUsers));
-            // Dispatch event to notify other hooks
+            setCurrentUser(updatedUser);
             window.dispatchEvent(new Event('local-storage'));
         }
     } catch (e) {
@@ -65,6 +68,7 @@ export default function SettingsPage() {
             description: "Could not save password change.",
             variant: "destructive",
         })
+        setIsSaving(false);
         return;
     }
 
@@ -74,6 +78,7 @@ export default function SettingsPage() {
       description: "Password updated successfully.",
     });
     form.reset();
+    setIsSaving(false);
   }
 
   return (
@@ -93,7 +98,7 @@ export default function SettingsPage() {
                   <FormItem>
                     <FormLabel>Current Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter current password" {...field} />
+                      <Input type="password" placeholder="Enter current password" {...field} disabled={isSaving} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -106,20 +111,29 @@ export default function SettingsPage() {
                   <FormItem>
                     <FormLabel>New Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter new password" {...field} />
+                      <Input type="password" placeholder="Enter new password" {...field} disabled={isSaving} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <div className="flex justify-between">
-                 <Button type="button" variant="outline" onClick={() => router.back()}>
+                 <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSaving}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                  </Button>
-                <Button type="submit">
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Password
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Password
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
