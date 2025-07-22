@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 
 const initialUsers: User[] = []
 
@@ -541,7 +542,7 @@ export default function Dashboard() {
           <StatCard title="Total Pending" value={formatCurrency(stats.totalPending)} icon={AlertCircle} className={stats.totalPending > 0 ? "text-orange-600" : ""} />
           <StatCard title="Total Profit" value={formatCurrency(stats.totalProfit)} icon={TrendingUp} className="text-green-600" />
           <StatCard title="Avg. Profit / Piece" value={formatCurrency(stats.avgProfit)} icon={TrendingUp} />
-          <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
+          <Card className={cn("shadow-md hover:shadow-lg hover:-translate-y-1 transition-all duration-300")}>
              <CardContent className="pt-6">
                 {isAdmin && (
                     <div className="mb-4">
@@ -873,5 +874,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
-    
