@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { Calendar as CalendarIcon, PlusCircle } from "lucide-react"
+import { Calendar as CalendarIcon, PlusCircle, Save } from "lucide-react"
 import type { Order, User, CreditCard } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
@@ -62,21 +62,58 @@ interface AddOrderDialogProps {
   onAddOrder: (order: Order) => void
   users: User[]
   cards: CreditCard[]
+  order?: Order | null
+  isOpen?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDialogProps) {
-  const [open, setOpen] = useState(false)
+export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen, onOpenChange }: AddOrderDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const { toast } = useToast()
+
+  const isEditMode = !!order;
+  
+  const open = isOpen !== undefined ? isOpen : internalOpen;
+  const setOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderSchema),
-    defaultValues: {
-        model: "",
-        variant: "",
-        cashback: 0,
-        dealer: "",
+    defaultValues: isEditMode ? {
+      ...order,
+      sellingPrice: order.sellingPrice ?? undefined,
+      dealer: order.dealer ?? undefined,
+      cashback: order.cashback ?? 0,
+    } : {
+      model: "",
+      variant: "",
+      cashback: 0,
+      dealer: "",
     },
   })
+
+  useEffect(() => {
+    if (order) {
+      form.reset({
+        ...order,
+        sellingPrice: order.sellingPrice ?? undefined,
+        dealer: order.dealer ?? undefined,
+        cashback: order.cashback ?? 0,
+      });
+    } else {
+      form.reset({
+        model: "",
+        variant: "",
+        userId: undefined,
+        cardId: undefined,
+        orderDate: undefined,
+        deliveryDate: undefined,
+        orderedPrice: undefined,
+        cashback: 0,
+        sellingPrice: undefined,
+        dealer: "",
+      });
+    }
+  }, [order, form]);
   
   const selectedUserId = form.watch("userId");
   const filteredCards = cards.filter(card => card.userId === selectedUserId);
@@ -84,33 +121,43 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
   function onSubmit(data: OrderFormValues) {
     const newOrder: Order = {
       ...data,
+      id: isEditMode ? order.id : new Date().toISOString(),
       cashback: data.cashback || 0,
-      id: new Date().toISOString(),
+      sellingPrice: data.sellingPrice,
+      dealer: data.dealer,
     }
     onAddOrder(newOrder)
     toast({
-        title: "Success!",
-        description: "New phone order has been added.",
+        title: `Success!`,
+        description: `Order has been ${isEditMode ? 'updated' : 'added'}.`,
         variant: "default",
     })
     setOpen(false)
-    form.reset()
+    if (!isEditMode) {
+      form.reset()
+    }
   }
+
+  const dialogTitle = isEditMode ? "Edit Phone Order" : "Add New Phone Order";
+  const dialogDescription = isEditMode 
+    ? "Update the details of your phone purchase. Click save when you're done."
+    : "Enter the details of your new phone purchase. Click save when you're done.";
+  const buttonText = isEditMode ? "Save Changes" : "Save Order";
+
+  const TriggerButton = (
+    <Button>
+      <PlusCircle className="mr-2 h-4 w-4" />
+      Add Order
+    </Button>
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add Order
-        </Button>
-      </DialogTrigger>
+      {!isEditMode && <DialogTrigger asChild>{TriggerButton}</DialogTrigger>}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add New Phone Order</DialogTitle>
-          <DialogDescription>
-            Enter the details of your new phone purchase. Click save when you're done.
-          </DialogDescription>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh] pr-6 -mr-6">
           <Form {...form}>
@@ -134,7 +181,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
               <FormField control={form.control} name="userId" render={({ field }) => (
                   <FormItem>
                       <FormLabel>User</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                           <SelectTrigger>
                               <SelectValue placeholder="Select a user" />
@@ -152,7 +199,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
               <FormField control={form.control} name="cardId" render={({ field }) => (
                   <FormItem>
                       <FormLabel>Credit Card</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedUserId}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={!selectedUserId}>
                           <FormControl>
                           <SelectTrigger>
                               <SelectValue placeholder="Select a card" />
@@ -223,6 +270,14 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
                   </FormItem>
                 )}
               />
+               <FormField control={form.control} name="sellingPrice" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Selling Price (Optional)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 95000" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField control={form.control} name="dealer" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Dealer (Optional)</FormLabel>
@@ -232,7 +287,10 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
                 )}
               />
                <DialogFooter>
-                  <Button type="submit">Save Order</Button>
+                  <Button type="submit">
+                    <Save className="mr-2 h-4 w-4" />
+                    {buttonText}
+                  </Button>
               </DialogFooter>
             </form>
           </Form>
@@ -241,3 +299,5 @@ export default function AddOrderDialog({ onAddOrder, users, cards }: AddOrderDia
     </Dialog>
   )
 }
+
+    

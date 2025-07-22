@@ -101,16 +101,28 @@ export default function Dashboard() {
   const [userFilter, setUserFilter] = useState<string>("all")
   const [cardFilter, setCardFilter] = useState<string>("all")
   const [dealerFilter, setDealerFilter] = useState<string>("all")
+  const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isImportAlertOpen, setImportAlertOpen] = useState(false)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
 
-
   const handleAddOrder = (order: Order) => {
     setOrders((prev) => [order, ...prev])
   }
+
+  const handleUpdateOrder = (updatedOrder: Order) => {
+    setOrders((prev) => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o))
+    setOrderToEdit(null);
+  };
+
+  const handleDeleteOrder = (orderId: string) => {
+    setOrders((prev) => prev.filter(o => o.id !== orderId))
+    setOrderToDelete(null)
+    toast({ title: "Success!", description: "Order deleted successfully." });
+  };
   
   const handleAddUser = (user: User) => {
     setUsers((prev) => [user, ...prev]);
@@ -315,9 +327,44 @@ export default function Dashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          <OrderTable orders={filteredOrders} users={users} cards={cards} />
+          <OrderTable 
+            orders={filteredOrders} 
+            users={users} 
+            cards={cards}
+            onEditOrder={setOrderToEdit}
+            onDeleteOrder={setOrderToDelete}
+          />
         </CardContent>
       </Card>
+
+       {orderToEdit && (
+        <AddOrderDialog
+          isOpen={!!orderToEdit}
+          onOpenChange={(isOpen) => !isOpen && setOrderToEdit(null)}
+          onAddOrder={handleUpdateOrder}
+          users={users}
+          cards={cards}
+          order={orderToEdit}
+        />
+      )}
+
+      {orderToDelete && (
+         <AlertDialog open={!!orderToDelete} onOpenChange={(isOpen) => !isOpen && setOrderToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the order for the {orderToDelete.model}.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleDeleteOrder(orderToDelete.id)}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+         </AlertDialog>
+      )}
+
       <AlertDialog open={isImportAlertOpen} onOpenChange={setImportAlertOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
