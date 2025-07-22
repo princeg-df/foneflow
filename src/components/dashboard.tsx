@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw, PlusCircle, UserPlus, AlertCircle } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw, PlusCircle, UserPlus, AlertCircle, Menu } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
 import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
@@ -38,6 +38,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet"
+import { Separator } from "@/components/ui/separator"
+
 
 const initialUsers: User[] = []
 
@@ -479,7 +482,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-30 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between mx-auto px-4">
           <div className="flex items-center gap-2">
             <Smartphone className="h-6 w-6 text-primary"/>
@@ -488,17 +491,18 @@ export default function Dashboard() {
             </h1>
           </div>
           
-          <div className="flex items-center gap-1 sm:gap-2">
+          {/* Desktop Menu */}
+          <div className="hidden md:flex items-center gap-2">
             {isAdmin && (
               <>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
-                <Button variant="outline" size="sm" onClick={handleImportClick} className="p-2 sm:px-3">
-                  <Upload className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Import</span>
+                <Button variant="outline" size="sm" onClick={handleImportClick}>
+                  <Upload className="h-4 w-4 mr-2" /> Import
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="p-2 sm:px-3">
-                      <Download className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Export</span>
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" /> Export
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
@@ -512,13 +516,13 @@ export default function Dashboard() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                 <Button variant="outline" size="sm" className="text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-600 p-2 sm:px-3" onClick={handleResetData}>
-                    <RotateCw className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Reset</span>
+                 <Button variant="outline" size="sm" className="text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-600" onClick={handleResetData}>
+                    <RotateCw className="h-4 w-4 mr-2" /> Reset
                   </Button>
               </>
             )}
-             <div className="flex items-center gap-1 sm:gap-2 border-l ml-2 pl-2 sm:ml-4 sm:pl-4">
-                <div className="text-right hidden sm:block">
+             <div className="flex items-center gap-2 border-l ml-2 pl-4">
+                <div className="text-right">
                     <p className="font-semibold text-sm">{currentUser.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">{currentUser.role}</p>
                 </div>
@@ -531,6 +535,67 @@ export default function Dashboard() {
                   <span className="sr-only">Logout</span>
                 </Button>
              </div>
+          </div>
+
+          {/* Mobile Menu */}
+          <div className="md:hidden">
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <Menu className="h-5 w-5" />
+                        <span className="sr-only">Open menu</span>
+                    </Button>
+                </SheetTrigger>
+                <SheetContent>
+                    <div className="flex flex-col gap-4 py-4">
+                        <div className="mb-2">
+                           <p className="font-semibold text-lg">{currentUser.name}</p>
+                           <p className="text-sm text-muted-foreground capitalize">{currentUser.role}</p>
+                        </div>
+                        <Separator />
+                        <SheetClose asChild>
+                            <Button variant="ghost" className="justify-start" onClick={() => router.push('/settings')}>
+                                <Settings className="mr-2 h-4 w-4" />
+                                Settings
+                            </Button>
+                        </SheetClose>
+                        {isAdmin && (
+                            <>
+                                <Separator />
+                                <h4 className="text-sm font-semibold text-muted-foreground px-2">Admin Actions</h4>
+                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+                                <SheetClose asChild>
+                                    <Button variant="ghost" className="justify-start" onClick={handleImportClick}>
+                                      <Upload className="mr-2 h-4 w-4" /> Import Data
+                                    </Button>
+                                </SheetClose>
+                                 <SheetClose asChild>
+                                    <Button variant="ghost" className="justify-start" onClick={handleExportJson}>
+                                      <FileText className="mr-2 h-4 w-4" /> Export JSON
+                                    </Button>
+                                </SheetClose>
+                                 <SheetClose asChild>
+                                    <Button variant="ghost" className="justify-start" onClick={handleExportPdf}>
+                                      <FileText className="mr-2 h-4 w-4" /> Export PDF
+                                    </Button>
+                                </SheetClose>
+                                 <SheetClose asChild>
+                                    <Button variant="ghost" className="justify-start text-red-500 hover:text-red-600" onClick={handleResetData}>
+                                      <RotateCw className="mr-2 h-4 w-4" /> Reset App
+                                    </Button>
+                                </SheetClose>
+                            </>
+                        )}
+                        <Separator />
+                        <SheetClose asChild>
+                            <Button variant="ghost" className="justify-start" onClick={handleLogout}>
+                               <LogOut className="mr-2 h-4 w-4" />
+                                Logout
+                            </Button>
+                        </SheetClose>
+                    </div>
+                </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
