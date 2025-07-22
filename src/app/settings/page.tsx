@@ -22,7 +22,6 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useLocalStorage<User | null>('foneflow-currentUser', null);
-  const [, setUsers] = useLocalStorage<User[]>('foneflow-users', []);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -49,10 +48,26 @@ export default function SettingsPage() {
     const updatedUser = { ...currentUser, password: data.newPassword };
     setCurrentUser(updatedUser);
     
-    // Fetch users only when needed
-    const allUsers: User[] = JSON.parse(localStorage.getItem('foneflow-users') || '[]');
-    const updatedUsers = allUsers.map(u => u.id === currentUser.id ? updatedUser : u);
-    setUsers(updatedUsers);
+    // Read/write directly to localStorage to avoid slow hook initialization
+    try {
+        const usersRaw = localStorage.getItem('foneflow-users');
+        if (usersRaw) {
+            const allUsers: User[] = JSON.parse(usersRaw);
+            const updatedUsers = allUsers.map(u => u.id === currentUser.id ? updatedUser : u);
+            localStorage.setItem('foneflow-users', JSON.stringify(updatedUsers));
+            // Dispatch event to notify other hooks
+            window.dispatchEvent(new Event('local-storage'));
+        }
+    } catch (e) {
+        console.error("Failed to update users in localStorage", e);
+        toast({
+            title: "Error",
+            description: "Could not save password change.",
+            variant: "destructive",
+        })
+        return;
+    }
+
 
     toast({
       title: "Success",
