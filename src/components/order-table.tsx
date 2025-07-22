@@ -82,7 +82,7 @@ export default function OrderTable({ orders, users, cards, onEditOrder, onDelete
                   <TableCell className="text-right">{formatCurrency(order.orderedPrice)}</TableCell>
                   <TableCell className="text-right text-green-600">{formatCurrency(order.cashback || 0)}</TableCell>
                   <TableCell>{cardMap.get(order.cardId) || 'Unknown'}</TableCell>
-                  <TableCell className="text-right">{order.sellingPrice ? formatCurrency(order.selling.Price) : 'N/A'}</TableCell>
+                  <TableCell className="text-right">{order.sellingPrice ? formatCurrency(order.sellingPrice) : 'N/A'}</TableCell>
                   <TableCell>{order.dealer || 'N/A'}</TableCell>
                   <TableCell className={`text-right font-medium ${profit !== undefined && profit > 0 ? 'text-green-600' : 'text-red-500'}`}>
                     {profit !== undefined ? formatCurrency(profit) : 'N/A'}
