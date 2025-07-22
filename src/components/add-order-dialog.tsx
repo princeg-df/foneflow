@@ -79,48 +79,39 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
   
   const defaultUserId = !isEditMode && currentUser?.role !== 'admin' ? currentUser?.id : undefined;
 
-  const form = useForm<OrderFormValues>({
-    resolver: zodResolver(orderSchema),
-    defaultValues: isEditMode ? {
-      ...order,
-      orderDate: new Date(order.orderDate),
-      deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined,
-      sellingPrice: order.sellingPrice ?? undefined,
-      dealer: order.dealer ?? undefined,
-      cashback: order.cashback ?? 0,
-    } : {
-      model: "",
-      variant: "",
-      cashback: 0,
-      dealer: "",
-      userId: defaultUserId,
-    },
-  })
-
-  useEffect(() => {
-    if (order) {
-      form.reset({
+  const getInitialValues = () => {
+    if (isEditMode && order) {
+      return {
         ...order,
         orderDate: new Date(order.orderDate),
         deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined,
         sellingPrice: order.sellingPrice ?? undefined,
-        dealer: order.dealer ?? undefined,
+        dealer: order.dealer ?? "",
         cashback: order.cashback ?? 0,
-      });
-    } else {
-      form.reset({
-        model: "",
-        variant: "",
-        userId: defaultUserId,
-        cardId: undefined,
-        orderDate: undefined,
-        deliveryDate: undefined,
-        orderedPrice: undefined,
-        cashback: 0,
-        sellingPrice: undefined,
-        dealer: "",
-      });
+      }
     }
+    return {
+      model: "",
+      variant: "",
+      userId: defaultUserId,
+      cardId: undefined,
+      orderDate: new Date(),
+      deliveryDate: undefined,
+      orderedPrice: undefined,
+      cashback: 0,
+      sellingPrice: undefined,
+      dealer: "",
+    }
+  }
+
+  const form = useForm<OrderFormValues>({
+    resolver: zodResolver(orderSchema),
+    defaultValues: getInitialValues(),
+  })
+
+  useEffect(() => {
+    form.reset(getInitialValues());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order, form, defaultUserId]);
   
   const selectedUserId = form.watch("userId");
@@ -129,7 +120,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
   function onSubmit(data: OrderFormValues) {
     const newOrder: Order = {
       ...data,
-      id: isEditMode ? order.id : `order_${new Date().getTime()}`,
+      id: isEditMode && order ? order.id : `order_${new Date().getTime()}`,
       cashback: data.cashback || 0,
       sellingPrice: data.sellingPrice,
       dealer: data.dealer,
@@ -265,7 +256,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
               <FormField control={form.control} name="orderedPrice" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Ordered Price</FormLabel>
-                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 89000" {...field} /></FormControl>
+                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 89000" {...field} value={field.value ?? ""} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -273,7 +264,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
               <FormField control={form.control} name="cashback" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cashback</FormLabel>
-                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 5000" {...field} /></FormControl>
+                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 5000" {...field} value={field.value ?? ""} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -281,7 +272,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
                <FormField control={form.control} name="sellingPrice" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Selling Price (Optional)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 95000" {...field} /></FormControl>
+                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 95000" {...field} value={field.value ?? ""} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -289,7 +280,7 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
               <FormField control={form.control} name="dealer" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Dealer (Optional)</FormLabel>
-                    <FormControl><Input placeholder="e.g., Amazon" {...field} /></FormControl>
+                    <FormControl><Input placeholder="e.g., Amazon" {...field} value={field.value ?? ""} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

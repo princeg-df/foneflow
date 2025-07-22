@@ -56,18 +56,22 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, c
   const open = isOpen !== undefined ? isOpen : internalOpen;
   const setOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
 
+  const getInitialValues = () => {
+    if (isEditMode && user) {
+      return { name: user.name, email: user.email, password: user.password, role: user.role }
+    }
+    return { name: "", email: "", password: "", role: "user" as const }
+  }
+
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
-    defaultValues: isEditMode ? { name: user.name, email: user.email, password: user.password, role: user.role } : { name: "", email: "", password: "", role: "user" },
+    defaultValues: getInitialValues(),
   })
   
   useEffect(() => {
-    if (user) {
-      form.reset({ name: user.name, email: user.email, password: user.password, role: user.role });
-    } else {
-      form.reset({ name: "", email: "", password: "", role: "user" });
-    }
+    form.reset(getInitialValues());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, form]);
 
   function onSubmit(data: UserFormValues) {
@@ -85,7 +89,7 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, c
 
     const newUser: User = {
       ...data,
-      id: isEditMode ? user.id : `user_${new Date().getTime()}`,
+      id: isEditMode && user ? user.id : `user_${new Date().getTime()}`,
     }
     onAddUser(newUser)
     toast({

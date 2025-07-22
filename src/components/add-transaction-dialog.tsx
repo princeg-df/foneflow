@@ -60,34 +60,35 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
   const open = isOpen !== undefined ? isOpen : internalOpen;
   const setOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
 
-  const form = useForm<TransactionFormValues>({
-    resolver: zodResolver(transactionSchema),
-    defaultValues: isEditMode ? { ...transaction, description: transaction.description ?? "" } : {
+  const getInitialValues = () => {
+    if (isEditMode && transaction) {
+       return { 
+        ...transaction, 
+        description: transaction.description ?? "" 
+      }
+    }
+    return {
+      date: new Date(),
+      amount: undefined,
       dealer: "",
       description: "",
-    },
+    }
+  }
+
+  const form = useForm<TransactionFormValues>({
+    resolver: zodResolver(transactionSchema),
+    defaultValues: getInitialValues(),
   })
 
   useEffect(() => {
-    if (transaction) {
-      form.reset({
-        ...transaction,
-        description: transaction.description ?? "",
-      });
-    } else {
-      form.reset({
-        date: undefined,
-        amount: undefined,
-        dealer: "",
-        description: "",
-      });
-    }
+    form.reset(getInitialValues());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transaction, form]);
 
   function onSubmit(data: TransactionFormValues) {
     const newTransaction: Transaction = {
       ...data,
-      id: isEditMode ? transaction.id : `txn_${new Date().getTime()}`,
+      id: isEditMode && transaction ? transaction.id : `txn_${new Date().getTime()}`,
       description: data.description,
     }
     onAddTransaction(newTransaction)
@@ -136,7 +137,7 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
             <FormField control={form.control} name="amount" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Amount Received</FormLabel>
-                  <FormControl><Input type="number" step="0.01" placeholder="e.g., 50000" {...field} /></FormControl>
+                  <FormControl><Input type="number" step="0.01" placeholder="e.g., 50000" {...field} value={field.value ?? ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -164,7 +165,7 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
             <FormField control={form.control} name="description" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl><Input placeholder="e.g., Bulk payment for January sales" {...field} /></FormControl>
+                  <FormControl><Input placeholder="e.g., Bulk payment for January sales" {...field} value={field.value ?? ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
