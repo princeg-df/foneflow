@@ -412,7 +412,7 @@ export default function Dashboard() {
     const totalProfit = profitFromSoldPhones;
     
     const avgProfit = soldOrders.length > 0 ? totalProfit / soldOrders.length : 0;
-    const totalPending = totalSellingPrice - totalReceived;
+    const totalPending = totalInvested - totalReceived;
     
     return {
       totalPhones: filteredOrders.length,
