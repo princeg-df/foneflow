@@ -116,7 +116,7 @@ export default function AddOrderDialog({ users, cards, order, isOpen, onOpenChan
   useEffect(() => {
     form.reset(getInitialValues());
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order, form, defaultUserId]);
+  }, [order, open]);
   
   const selectedUserId = form.watch("userId");
   const filteredCards = cards.filter(card => card.userId === selectedUserId);
@@ -139,20 +139,6 @@ export default function AddOrderDialog({ users, cards, order, isOpen, onOpenChan
           description: `Order has been ${isEditMode ? 'updated' : 'added'}.`,
       });
       setOpen(false);
-      if (!isEditMode) {
-        form.reset({
-          model: "",
-          variant: "",
-          userId: defaultUserId,
-          cardId: undefined,
-          orderDate: new Date(),
-          deliveryDate: undefined,
-          orderedPrice: undefined,
-          cashback: 0,
-          sellingPrice: undefined,
-          dealer: "",
-        });
-      }
       if(onSuccess) onSuccess();
     } catch(e) {
         console.error("Error adding document: ", e);

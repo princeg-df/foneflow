@@ -123,7 +123,7 @@ export default function AddTransactionDialog({ transaction, isOpen, onOpenChange
   useEffect(() => {
     form.reset(getInitialValues());
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transaction, form]);
+  }, [transaction, open]);
 
   async function onSubmit(data: TransactionFormValues) {
     const id = isEditMode && transaction ? transaction.id : doc(collection(db, 'transactions')).id;
@@ -141,9 +141,6 @@ export default function AddTransactionDialog({ transaction, isOpen, onOpenChange
             description: `Transaction has been ${isEditMode ? 'updated' : 'added'}.`,
         })
         setOpen(false)
-        if (!isEditMode) {
-          form.reset()
-        }
         if (onSuccess) onSuccess();
     } catch(e) {
         console.error("Error adding transaction: ", e);
