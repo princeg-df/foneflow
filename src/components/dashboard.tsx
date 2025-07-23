@@ -41,10 +41,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils"
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
-import { auth, db } from "@/lib/firebase"
-import { signOut } from "firebase/auth"
-import { collection, onSnapshot, query, where, doc, deleteDoc, getDocs, writeBatch, Timestamp } from "firebase/firestore"
+import { auth, db, firebaseConfig } from "@/lib/firebase"
+import { signOut, createUserWithEmailAndPassword, getAuth } from "firebase/auth"
+import { collection, onSnapshot, query, where, doc, deleteDoc, getDocs, writeBatch, Timestamp, setDoc } from "firebase/firestore"
 import { useAuth } from "@/hooks/use-auth"
+import { initializeApp, getApps, deleteApp } from "firebase/app"
 
 export default function Dashboard() {
   const { user: currentUser, isLoading: isAuthLoading } = useAuth();
@@ -240,49 +241,65 @@ export default function Dashboard() {
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-      try {
-        const text = e.target?.result;
-        if (typeof text !== 'string') {
-            throw new Error("File content is not a string.");
-        }
-        const data = JSON.parse(text);
+        const tempAppName = `temp-auth-app-${Date.now()}`;
+        const tempApp = initializeApp(firebaseConfig, tempAppName);
+        const tempAuth = getAuth(tempApp);
 
-        if (!data.users || !data.cards || !data.orders || !data.transactions) {
-          throw new Error("Invalid JSON structure.");
-        }
-
-        const batch = writeBatch(db);
-        const existingEmails = new Set(users.map(u => u.email));
-
-        data.users.forEach((user: User) => {
-            if (!existingEmails.has(user.email)) {
-                batch.set(doc(db, "users", user.id), user)
+        try {
+            const text = e.target?.result;
+            if (typeof text !== 'string') {
+                throw new Error("File content is not a string.");
             }
-        });
-        data.cards.forEach((card: CreditCard) => batch.set(doc(db, "cards", card.id), card));
-        data.orders.forEach((order: any) => {
-            const orderData = { ...order, orderDate: Timestamp.fromDate(new Date(order.orderDate)), deliveryDate: order.deliveryDate ? Timestamp.fromDate(new Date(order.deliveryDate)) : null };
-            batch.set(doc(db, "orders", order.id), orderData)
-        });
-        data.transactions.forEach((transaction: any) => {
-             const transData = { ...transaction, date: Timestamp.fromDate(new Date(transaction.date)) };
-            batch.set(doc(db, "transactions", transaction.id), transData)
-        });
+            const data = JSON.parse(text);
 
-        await batch.commit();
+            if (!data.users || !data.cards || !data.orders || !data.transactions) {
+                throw new Error("Invalid JSON structure.");
+            }
 
-        toast({ title: "Success!", description: "Data imported successfully." });
-      } catch (error) {
-        console.error("Import failed:", error);
-        toast({
-          title: "Import Error",
-          description: "Failed to import data. Please check the file format.",
-          variant: "destructive",
-        });
-      } finally {
-        setImportAlertOpen(false);
-        setPendingFile(null);
-      }
+            const batch = writeBatch(db);
+            const existingEmails = new Set(users.map(u => u.email));
+
+            for (const newUser of data.users) {
+                if (!existingEmails.has(newUser.email)) {
+                    try {
+                        const randomPassword = Math.random().toString(36).slice(-8);
+                        const userCredential = await createUserWithEmailAndPassword(tempAuth, newUser.email, randomPassword);
+                        const newUserId = userCredential.user.uid;
+                        
+                        const userDoc = { id: newUserId, name: newUser.name, email: newUser.email, role: newUser.role };
+                        batch.set(doc(db, "users", newUserId), userDoc);
+
+                    } catch (error: any) {
+                        console.warn(`Could not create auth user for ${newUser.email}:`, error.message);
+                    }
+                }
+            }
+            
+            data.cards.forEach((card: CreditCard) => batch.set(doc(db, "cards", card.id), card));
+            data.orders.forEach((order: any) => {
+                const orderData = { ...order, orderDate: Timestamp.fromDate(new Date(order.orderDate)), deliveryDate: order.deliveryDate ? Timestamp.fromDate(new Date(order.deliveryDate)) : null };
+                batch.set(doc(db, "orders", order.id), orderData)
+            });
+            data.transactions.forEach((transaction: any) => {
+                 const transData = { ...transaction, date: Timestamp.fromDate(new Date(transaction.date)) };
+                batch.set(doc(db, "transactions", transaction.id), transData)
+            });
+
+            await batch.commit();
+
+            toast({ title: "Success!", description: "Data imported successfully. New users must reset their password." });
+        } catch (error) {
+            console.error("Import failed:", error);
+            toast({
+                title: "Import Error",
+                description: "Failed to import data. Please check the file format and content.",
+                variant: "destructive",
+            });
+        } finally {
+            await deleteApp(tempApp);
+            setImportAlertOpen(false);
+            setPendingFile(null);
+        }
     };
     reader.readAsText(pendingFile);
   };
@@ -336,12 +353,14 @@ export default function Dashboard() {
   const handleExportPdf = () => {
     const doc = new jsPDF();
     const userMap = new Map(users.map(u => [u.id, u.name]));
-    
+    const cardMap = new Map(cards.map(c => [c.id, `${c.name} (...${c.cardNumber.slice(-4)})`]));
+
     doc.setFontSize(20);
     doc.text("FoneFlow Report", 14, 22);
     doc.setFontSize(11);
     doc.text(`Report generated on: ${format(new Date(), "PPP")}`, 14, 30);
     
+    // Orders Table
     autoTable(doc, {
       startY: 40,
       head: [['Model', 'User', 'Order Date', 'Delivery Date', 'Price', 'Cashback', 'Net Cost', 'Selling Price', 'Profit', 'Profit %', 'Status']],
@@ -365,7 +384,7 @@ export default function Dashboard() {
           o.sellingPrice ? 'Sold' : 'In Stock'
         ];
       }),
-      headStyles: { fillColor: [0, 128, 128] },
+      headStyles: { fillColor: [0, 128, 128] }, // Teal color
       didDrawPage: (data) => {
          if (data.pageNumber === 1) {
             doc.setFontSize(16);
@@ -373,6 +392,31 @@ export default function Dashboard() {
          }
       }
     });
+
+    const finalY = (doc as any).lastAutoTable.finalY || 40;
+
+    // Transactions Table
+    autoTable(doc, {
+        startY: finalY + 15,
+        head: [['Date', 'Dealer', 'User', 'Card', 'Mode', 'Amount']],
+        body: transactions.map(t => {
+            const transactionDate = t.date instanceof Timestamp ? t.date.toDate() : t.date;
+            return [
+                format(transactionDate, "P"),
+                t.dealer,
+                userMap.get(t.userId) || 'N/A',
+                cardMap.get(t.cardId) || 'N/A',
+                t.paymentMode === 'online' ? `${t.paymentMode} (${t.onlinePaymentType})` : t.paymentMode,
+                formatCurrencyPdf(t.amount)
+            ]
+        }),
+        headStyles: { fillColor: [128, 0, 128] }, // Purple color
+        didDrawPage: (data) => {
+            doc.setFontSize(16);
+            doc.text("Transactions", 14, finalY + 10);
+        }
+    });
+
 
     doc.save(`foneflow-report-${new Date().toISOString().split('T')[0]}.pdf`);
     toast({ title: "Success!", description: "PDF report exported successfully." });
@@ -901,7 +945,7 @@ export default function Dashboard() {
               <AlertDialogHeader>
               <AlertDialogTitle>Are you sure you want to import data?</AlertDialogTitle>
               <AlertDialogDescription>
-                  This will overwrite all existing data in Firestore. This action cannot be undone.
+                  This will import all data from the selected file. Existing users with the same email will be skipped. This action cannot be undone.
               </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
