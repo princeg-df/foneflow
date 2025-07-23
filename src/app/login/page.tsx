@@ -1,3 +1,4 @@
+
 // src/app/login/page.tsx
 "use client";
 
@@ -12,10 +13,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Smartphone, LogIn, Loader2 } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
-import type { User as UserType } from "@/lib/types";
+import { useAuth } from "@/hooks/use-auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -28,8 +28,8 @@ const defaultAdminEmail = 'princegupta619@gmail.com';
 const defaultAdminPassword = 'Qwerty@123';
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const { user, isLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -39,64 +39,28 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    const checkAndCreateAdmin = async () => {
-        try {
-            // This is a simplified check. In a real app, you'd want a more secure way to provision the first admin.
-            // We try to sign in to check if the user exists. If not, create it.
-            await signInWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
-            await auth.signOut();
-        } catch (error: any) {
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                console.log("Default admin not found, creating one...");
-                try {
-                    const userCredential = await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
-                    const adminUser: Omit<UserType, 'id'> = {
-                        name: 'Prince',
-                        email: defaultAdminEmail,
-                        role: 'admin',
-                    };
-                    await setDoc(doc(db, "users", userCredential.user.uid), adminUser);
-                    console.log("Default admin user created.");
-                    await auth.signOut();
-                } catch (creationError) {
-                    console.error("Error creating default admin user:", creationError);
-                }
-            }
-        }
-    };
-    
-    checkAndCreateAdmin();
-
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        router.replace('/');
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [router]);
-
+    if (!isLoading && user) {
+      router.replace('/');
+    }
+  }, [user, isLoading, router]);
 
   async function onSubmit(data: LoginFormValues) {
     setIsLoggingIn(true);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({ title: "Success", description: "Logged in successfully." });
-      router.push('/');
+      // The useAuth hook will handle the redirect on state change
     } catch (error) {
       toast({
         title: "Error",
         description: "Incorrect email or password. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsLoggingIn(false);
     }
   }
 
-  if (isLoading) {
+  if (isLoading || user) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

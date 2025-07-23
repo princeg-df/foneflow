@@ -1,3 +1,4 @@
+
 // src/components/add-order-dialog.tsx
 "use client"
 
@@ -45,6 +46,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { db } from "@/lib/firebase"
 import { doc, setDoc, Timestamp } from "firebase/firestore"
+import { useAuth } from "@/hooks/use-auth"
 
 const orderSchema = z.object({
   model: z.string().min(2, "Model is required"),
@@ -67,11 +69,11 @@ interface AddOrderDialogProps {
   order?: Order | null
   isOpen?: boolean
   onOpenChange?: (open: boolean) => void
-  currentUser: User | null;
   onSuccess?: () => void;
 }
 
-export default function AddOrderDialog({ users, cards, order, isOpen, onOpenChange, currentUser, onSuccess }: AddOrderDialogProps) {
+export default function AddOrderDialog({ users, cards, order, isOpen, onOpenChange, onSuccess }: AddOrderDialogProps) {
+  const { user: currentUser } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false);
   const { toast } = useToast()
 
@@ -139,7 +141,18 @@ export default function AddOrderDialog({ users, cards, order, isOpen, onOpenChan
       });
       setOpen(false);
       if (!isEditMode) {
-        form.reset();
+        form.reset({
+          model: "",
+          variant: "",
+          userId: defaultUserId,
+          cardId: undefined,
+          orderDate: new Date(),
+          deliveryDate: undefined,
+          orderedPrice: undefined,
+          cashback: 0,
+          sellingPrice: undefined,
+          dealer: "",
+        });
       }
       if(onSuccess) onSuccess();
     } catch(e) {
@@ -195,7 +208,7 @@ export default function AddOrderDialog({ users, cards, order, isOpen, onOpenChan
               <FormField control={form.control} name="userId" render={({ field }) => (
                   <FormItem>
                       <FormLabel>User</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={currentUser?.role !== 'admin'}>
+                      <Select onValueChange={(value) => { field.onChange(value); form.setValue('cardId', ''); }} value={field.value} disabled={currentUser?.role !== 'admin'}>
                           <FormControl>
                           <SelectTrigger>
                               <SelectValue placeholder="Select a user" />

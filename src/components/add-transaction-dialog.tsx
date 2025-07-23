@@ -1,3 +1,4 @@
+
 // src/components/add-transaction-dialog.tsx
 "use client"
 
@@ -46,6 +47,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { db } from "@/lib/firebase"
 import { doc, setDoc, Timestamp } from "firebase/firestore"
+import { useAuth } from "@/hooks/use-auth"
 
 const transactionSchema = z.object({
   date: z.date({ required_error: "Transaction date is required." }),
@@ -74,11 +76,11 @@ interface AddTransactionDialogProps {
   onOpenChange?: (open: boolean) => void
   users: User[];
   cards: CreditCard[];
-  currentUser: User | null;
   onSuccess?: () => void;
 }
 
-export default function AddTransactionDialog({ transaction, isOpen, onOpenChange, users, cards, currentUser, onSuccess }: AddTransactionDialogProps) {
+export default function AddTransactionDialog({ transaction, isOpen, onOpenChange, users, cards, onSuccess }: AddTransactionDialogProps) {
+  const { user: currentUser } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false)
   const { toast } = useToast()
 
@@ -197,7 +199,7 @@ export default function AddTransactionDialog({ transaction, isOpen, onOpenChange
                 <FormField control={form.control} name="userId" render={({ field }) => (
                     <FormItem>
                         <FormLabel>User</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={currentUser?.role !== 'admin'}>
+                        <Select onValueChange={(value) => { field.onChange(value); form.setValue('cardId', ''); }} value={field.value} disabled={currentUser?.role !== 'admin'}>
                             <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a user" />

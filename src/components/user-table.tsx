@@ -1,3 +1,4 @@
+
 // src/components/user-table.tsx
 "use client"
 
@@ -21,15 +22,17 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/hooks/use-auth"
 
 interface UserTableProps {
   users: User[];
   onEditUser: (user: User) => void;
   onDeleteUser: (user: User) => void;
-  currentUser: User | null;
 }
 
-export default function UserTable({ users, onEditUser, onDeleteUser, currentUser }: UserTableProps) {
+export default function UserTable({ users, onEditUser, onDeleteUser }: UserTableProps) {
+  const { user: currentUser } = useAuth();
+
   return (
     <div className="rounded-md border">
       <Table>

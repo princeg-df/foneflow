@@ -1,3 +1,4 @@
+
 // src/components/dashboard.tsx
 "use client"
 
@@ -41,16 +42,17 @@ import { cn } from "@/lib/utils"
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { auth, db } from "@/lib/firebase"
-import { onAuthStateChanged, signOut } from "firebase/auth"
-import { collection, onSnapshot, query, doc, deleteDoc, getDoc, getDocs, writeBatch, Timestamp } from "firebase/firestore"
+import { signOut } from "firebase/auth"
+import { collection, onSnapshot, query, doc, deleteDoc, getDocs, writeBatch, Timestamp } from "firebase/firestore"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function Dashboard() {
+  const { user: currentUser, isLoading: isAuthLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [cards, setCards] = useState<CreditCard[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [userFilter, setUserFilter] = useState<string>("all")
@@ -81,27 +83,11 @@ export default function Dashboard() {
   const isAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDocRef = doc(db, "users", user.uid);
-        const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setCurrentUser({ id: docSnap.id, ...docSnap.data() } as User);
-          } else {
-            signOut(auth);
-          }
-        });
-        return () => unsubscribeUser();
-      } else {
-        router.replace('/login');
-      }
-    });
-
-    return () => unsubscribeAuth();
-  }, [router]);
-  
-  useEffect(() => {
-    if (!currentUser) return;
+    if (isAuthLoading) return;
+    if (!currentUser) {
+      router.replace('/login');
+      return;
+    }
 
     const collectionsToWatch = ['orders', 'users', 'cards', 'transactions'];
     const setters:any = {
@@ -110,8 +96,10 @@ export default function Dashboard() {
       cards: setCards,
       transactions: setTransactions
     }
-
+    
+    setIsDataLoading(true);
     const unsubscribers = collectionsToWatch.map(coll => {
+      // Non-admins should not listen to the 'users' collection
       if (coll === 'users' && !isAdmin) return () => {};
       
       const q = query(collection(db, coll));
@@ -124,11 +112,11 @@ export default function Dashboard() {
       });
     })
     
-    setIsLoading(false);
+    setIsDataLoading(false);
 
     return () => unsubscribers.forEach(unsub => unsub());
 
-  }, [currentUser, isAdmin, toast]);
+  }, [currentUser, isAdmin, toast, isAuthLoading, router]);
 
 
   const handleDeleteOrder = async (orderId: string) => {
@@ -263,7 +251,7 @@ export default function Dashboard() {
   const confirmLogout = async () => {
     try {
       await signOut(auth);
-      router.replace('/login');
+      // The useAuth hook will handle the redirect
     } catch (error) {
       toast({ title: "Error", description: "Failed to log out.", variant: "destructive" });
     } finally {
@@ -445,7 +433,7 @@ export default function Dashboard() {
     setDealerFilter("all");
   };
 
-  if (isLoading || !currentUser) {
+  if (isAuthLoading || isDataLoading || !currentUser) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -613,9 +601,9 @@ export default function Dashboard() {
              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <CardTitle>FoneFlow Hub</CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <AddOrderDialog users={usersForFilter} cards={cards} currentUser={currentUser} onSuccess={() => {}} />
-                    {isAdmin && <AddTransactionDialog users={usersForFilter} cards={cards} currentUser={currentUser} onSuccess={() => {}} />}
-                    <AddUserDialog currentUser={currentUser} onSuccess={() => {}}/>
+                    <AddOrderDialog users={usersForFilter} cards={cards} onSuccess={() => {}} />
+                    {isAdmin && <AddTransactionDialog users={usersForFilter} cards={cards} onSuccess={() => {}} />}
+                    <AddUserDialog onSuccess={() => {}}/>
                     <AddCardDialog users={usersForFilter} onSuccess={() => {}}/>
                 </div>
             </div>
@@ -744,7 +732,7 @@ export default function Dashboard() {
                     </Tabs>
               </TabsContent>
               {isAdmin && <TabsContent value="users">
-                  <UserTable users={users} onEditUser={setUserToEdit} onDeleteUser={setUserToDelete} currentUser={currentUser} />
+                  <UserTable users={users} onEditUser={setUserToEdit} onDeleteUser={setUserToDelete} />
               </TabsContent>}
             </Tabs>
           </CardContent>
@@ -757,7 +745,6 @@ export default function Dashboard() {
             users={usersForFilter}
             cards={cards}
             order={orderToEdit}
-            currentUser={currentUser}
             onSuccess={() => {}}
           />
         )}
@@ -786,7 +773,6 @@ export default function Dashboard() {
             transaction={transactionToEdit}
             users={usersForFilter}
             cards={cards}
-            currentUser={currentUser}
             onSuccess={() => {}}
           />
         )}
@@ -813,7 +799,6 @@ export default function Dashboard() {
             isOpen={!!userToEdit}
             onOpenChange={(isOpen) => !isOpen && setUserToEdit(null)}
             user={userToEdit}
-            currentUser={currentUser}
             onSuccess={() => {}}
           />
         )}

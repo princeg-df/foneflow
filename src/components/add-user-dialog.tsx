@@ -1,3 +1,4 @@
+
 // src/components/add-user-dialog.tsx
 "use client"
 
@@ -30,6 +31,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { db } from "@/lib/firebase"
 import { doc, setDoc } from "firebase/firestore"
+import { useAuth } from "@/hooks/use-auth"
 
 const userSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -44,11 +46,11 @@ interface AddUserDialogProps {
   user?: User | null;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
-  currentUser: User | null;
   onSuccess?: () => void;
 }
 
-export default function AddUserDialog({ user, isOpen, onOpenChange, currentUser, onSuccess }: AddUserDialogProps) {
+export default function AddUserDialog({ user, isOpen, onOpenChange, onSuccess }: AddUserDialogProps) {
+  const { user: currentUser } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const { toast } = useToast()

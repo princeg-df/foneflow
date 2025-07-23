@@ -1,7 +1,8 @@
+
 // src/app/settings/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,9 +13,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Save, ArrowLeft, Loader2 } from "lucide-react";
-import type { User as UserType } from "@/lib/types";
+import { useAuth } from "@/hooks/use-auth";
 import { auth } from "@/lib/firebase";
-import { onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -24,30 +25,10 @@ const passwordSchema = z.object({
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsPage() {
-  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+  const { user: currentUser, isLoading } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        // In a real app, you'd fetch user profile from Firestore here.
-        // For now, we'll just use the auth object.
-        setCurrentUser({
-            id: user.uid,
-            email: user.email!,
-            name: user.displayName || 'User',
-            role: 'user' // This should be fetched from Firestore
-        });
-      } else {
-        router.replace('/login');
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [router]);
 
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
