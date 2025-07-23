@@ -1,4 +1,3 @@
-
 // src/components/add-order-dialog.tsx
 "use client"
 
@@ -45,7 +44,7 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { db } from "@/lib/firebase"
-import { doc, setDoc, Timestamp } from "firebase/firestore"
+import { doc, setDoc, Timestamp, collection } from "firebase/firestore"
 import { useAuth } from "@/hooks/use-auth"
 
 const orderSchema = z.object({
@@ -123,7 +122,7 @@ export default function AddOrderDialog({ users, cards, order, isOpen, onOpenChan
   const filteredCards = cards.filter(card => card.userId === selectedUserId);
 
   async function onSubmit(data: OrderFormValues) {
-    const id = isEditMode && order ? order.id : doc(doc(db, 'orders', 'placeholder')).id;
+    const id = isEditMode && order ? order.id : doc(collection(db, 'orders')).id;
     
     // Convert dates to Firestore Timestamps
     const orderData = {

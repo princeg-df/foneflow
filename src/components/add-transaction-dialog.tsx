@@ -1,4 +1,3 @@
-
 // src/components/add-transaction-dialog.tsx
 "use client"
 
@@ -46,7 +45,7 @@ import { useToast } from "@/hooks/use-toast"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { db } from "@/lib/firebase"
-import { doc, setDoc, Timestamp } from "firebase/firestore"
+import { doc, setDoc, Timestamp, collection } from "firebase/firestore"
 import { useAuth } from "@/hooks/use-auth"
 
 const transactionSchema = z.object({
@@ -127,7 +126,7 @@ export default function AddTransactionDialog({ transaction, isOpen, onOpenChange
   }, [transaction, form]);
 
   async function onSubmit(data: TransactionFormValues) {
-    const id = isEditMode && transaction ? transaction.id : doc(doc(db, 'transactions', 'placeholder')).id;
+    const id = isEditMode && transaction ? transaction.id : doc(collection(db, 'transactions')).id;
     const transactionData = {
       ...data,
       id,

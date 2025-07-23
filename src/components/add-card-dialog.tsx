@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { doc, setDoc } from "firebase/firestore"
+import { doc, setDoc, collection } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
 const cardSchema = z.object({
@@ -76,7 +76,7 @@ export default function AddCardDialog({ users, card, isOpen, onOpenChange, onSuc
   }, [card, form]);
 
   async function onSubmit(data: CardFormValues) {
-    const id = isEditMode ? (card as CreditCard).id : doc(doc(db, 'cards', 'placeholder')).id;
+    const id = isEditMode ? (card as CreditCard).id : doc(collection(db, 'cards')).id;
     const cardData: CreditCard = { ...data, id };
     
     try {

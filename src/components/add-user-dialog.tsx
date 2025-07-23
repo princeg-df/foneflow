@@ -1,4 +1,3 @@
-
 // src/components/add-user-dialog.tsx
 "use client"
 
@@ -30,7 +29,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { db } from "@/lib/firebase"
-import { doc, setDoc } from "firebase/firestore"
+import { doc, setDoc, collection } from "firebase/firestore"
 import { useAuth } from "@/hooks/use-auth"
 
 const userSchema = z.object({
@@ -85,7 +84,7 @@ export default function AddUserDialog({ user, isOpen, onOpenChange, onSuccess }:
     // This is a simplified client-side version.
     // We can't create a user in Firebase Auth from the client without signing them in.
     // So we'll just store their details in Firestore. This is NOT secure for production.
-    const id = isEditMode && user ? user.id : doc(doc(db, 'users', 'placeholder')).id;
+    const id = isEditMode && user ? user.id : doc(collection(db, 'users')).id;
     const userData: Omit<User, 'password'> = {
       id,
       name: data.name,
