@@ -28,18 +28,29 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { db } from "@/lib/firebase"
-import { doc, setDoc, collection } from "firebase/firestore"
+import { db, auth as mainAuth, firebaseConfig } from "@/lib/firebase"
+import { doc, setDoc } from "firebase/firestore"
 import { useAuth } from "@/hooks/use-auth"
+import { createUserWithEmailAndPassword, getAuth } from "firebase/auth"
+import { initializeApp, getApps, deleteApp } from "firebase/app"
 
-const userSchema = z.object({
+// Schema for adding a new user
+const addUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address."),
   password: z.string().min(6, "Password must be at least 6 characters long"),
   role: z.enum(["admin", "user"]),
-})
+});
 
-type UserFormValues = z.infer<typeof userSchema>
+// Schema for editing an existing user (password is not editable here)
+const editUserSchema = z.object({
+  name: z.string().min(2, "Name is required"),
+  email: z.string().email("Invalid email address."),
+  role: z.enum(["admin", "user"]),
+});
+
+type AddUserFormValues = z.infer<typeof addUserSchema>;
+type EditUserFormValues = z.infer<typeof editUserSchema>;
 
 interface AddUserDialogProps {
   user?: User | null;
@@ -59,66 +70,81 @@ export default function AddUserDialog({ user, isOpen, onOpenChange, onSuccess }:
   const open = isOpen !== undefined ? isOpen : internalOpen;
   const setOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
 
-  const getInitialValues = () => {
-    if (isEditMode && user) {
-      // Password is not editable for existing users via this form for security reasons
-      return { name: user.name, email: user.email, password: "password", role: user.role }
-    }
-    return { name: "", email: "", password: "", role: "user" as const }
-  }
-
-
-  const form = useForm<UserFormValues>({
-    resolver: zodResolver(userSchema),
-    defaultValues: getInitialValues(),
-  })
+  const form = useForm<AddUserFormValues | EditUserFormValues>({
+    resolver: zodResolver(isEditMode ? editUserSchema : addUserSchema),
+  });
   
   useEffect(() => {
-    form.reset(getInitialValues());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, form]);
+    if(open) {
+      if (isEditMode && user) {
+        form.reset({ name: user.name, email: user.email, role: user.role });
+      } else {
+        form.reset({ name: "", email: "", password: "", role: "user" });
+      }
+    }
+  }, [user, isEditMode, open, form]);
 
-  async function onSubmit(data: UserFormValues) {
+  async function onSubmit(data: AddUserFormValues | EditUserFormValues) {
     setIsSaving(true);
-    // In a real app, creating a user would be a backend operation for security.
-    // This is a simplified client-side version.
-    // We can't create a user in Firebase Auth from the client without signing them in.
-    // So we'll just store their details in Firestore. This is NOT secure for production.
-    const id = isEditMode && user ? user.id : doc(collection(db, 'users')).id;
-    const userData: Omit<User, 'password'> = {
-      id,
-      name: data.name,
-      email: data.email,
-      role: data.role
+
+    if (isEditMode) {
+      // Logic for editing a user
+      if (!user) return;
+      const userData: Omit<User, 'id'> = {
+        name: data.name,
+        email: data.email,
+        role: (data as EditUserFormValues).role,
+      };
+      try {
+        await setDoc(doc(db, "users", user.id), userData, { merge: true });
+        toast({ title: "Success!", description: `User has been updated.` });
+        if(onSuccess) onSuccess();
+        setOpen(false);
+      } catch (error) {
+        console.error("Error updating user:", error);
+        toast({ title: "Error", description: "Could not update user details.", variant: "destructive" });
+      }
+
+    } else {
+      // Logic for creating a new user
+      const { name, email, password, role } = data as AddUserFormValues;
+      const tempAppName = `temp-auth-app-${Date.now()}`;
+      const tempApp = initializeApp(firebaseConfig, tempAppName);
+      const tempAuth = getAuth(tempApp);
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
+        const newUserId = userCredential.user.uid;
+        
+        const newUser: User = { id: newUserId, name, email, role };
+        await setDoc(doc(db, "users", newUserId), newUser);
+
+        toast({ title: "Success!", description: `User ${name} created successfully.` });
+        if(onSuccess) onSuccess();
+        setOpen(false);
+        form.reset();
+
+      } catch (error: any) {
+        console.error("Error creating user:", error);
+        toast({
+            title: "Error Creating User",
+            description: error.code === 'auth/email-already-in-use' 
+              ? "This email address is already in use."
+              : "An unexpected error occurred. Please try again.",
+            variant: "destructive"
+        });
+      } finally {
+        await deleteApp(tempApp);
+      }
     }
 
-    try {
-        await setDoc(doc(db, "users", id), userData);
-        toast({
-            title: "Success!",
-            description: `User has been ${isEditMode ? 'updated' : 'added'}.`,
-        })
-        setOpen(false)
-        if (!isEditMode) {
-          form.reset()
-        }
-        if(onSuccess) onSuccess();
-    } catch(e) {
-        console.error("Error saving user:", e);
-        toast({
-            title: "Error",
-            description: "Could not save user details. The email might already be in use.",
-            variant: "destructive"
-        })
-    } finally {
-        setIsSaving(false);
-    }
+    setIsSaving(false);
   }
 
   const dialogTitle = isEditMode ? "Edit User" : "Add New User";
   const dialogDescription = isEditMode
-    ? "Update the details of the user."
-    : "Enter the details of the new user. Password cannot be changed here.";
+    ? "Update the details of the user. Password cannot be changed here."
+    : "Create a new user in Firebase Authentication and Firestore.";
   const buttonText = isEditMode ? "Save Changes" : "Save User";
 
   const TriggerButton = (

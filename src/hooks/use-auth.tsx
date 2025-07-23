@@ -11,6 +11,7 @@ import { toast } from './use-toast';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  adminCredential?: { email: string, pass: string };
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,13 +21,13 @@ const AuthContext = createContext<AuthContextType>({
 
 let adminCheckCompleted = false;
 
+const defaultAdminEmail = 'admin@foneflow.com';
+const defaultAdminPassword = 'Admin@123';
+
 // This function runs once to ensure the default admin exists in Firebase Auth & Firestore.
 const checkAndCreateAdmin = async () => {
     if (adminCheckCompleted) return;
     adminCheckCompleted = true;
-
-    const defaultAdminEmail = 'admin@foneflow.com';
-    const defaultAdminPassword = 'Admin@123';
 
     try {
         await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
@@ -65,10 +66,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setIsLoading(false);
             } else {
               // This can happen if user exists in Auth but not Firestore (e.g., first-time admin creation).
-               if(firebaseUser.email === 'admin@foneflow.com') {
+               if(firebaseUser.email === defaultAdminEmail) {
                   const userData: User = {
                     id: firebaseUser.uid,
-                    email: 'admin@foneflow.com',
+                    email: defaultAdminEmail,
                     name: 'Default Admin',
                     role: 'admin',
                   };
@@ -105,7 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading }}>
+    <AuthContext.Provider value={{ user, isLoading, adminCredential: { email: defaultAdminEmail, pass: defaultAdminPassword } }}>
       {children}
     </AuthContext.Provider>
   );
@@ -118,5 +119,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-    
