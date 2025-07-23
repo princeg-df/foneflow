@@ -30,10 +30,9 @@ const checkAndCreateAdmin = async () => {
 
     try {
         await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
+        // This will trigger onAuthStateChanged, which will then handle creating the Firestore doc.
     } catch (error: any) {
-        if (error.code === 'auth/email-already-in-use') {
-            // Admin already exists in Auth, this is expected.
-        } else {
+        if (error.code !== 'auth/email-already-in-use') {
             console.error("Critical Error: Could not create default admin user in Auth:", error);
             toast({
                 title: "Setup Error",
@@ -43,8 +42,7 @@ const checkAndCreateAdmin = async () => {
         }
     }
     // Sign out immediately so this setup doesn't affect the user's login flow.
-    // This is crucial to ensure the onAuthStateChanged listener gets a clean state.
-    if (auth.currentUser) {
+    if (auth.currentUser?.email === defaultAdminEmail) {
        await auth.signOut();
     }
 };
@@ -64,9 +62,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const unsubSnapshot = onSnapshot(userDocRef, async (docSnap) => {
             if (docSnap.exists()) {
               setUser({ id: docSnap.id, ...docSnap.data() } as User);
+              setIsLoading(false);
             } else {
-              // This can happen if user exists in Auth but not Firestore.
-              // Let's create the user doc for the default admin if it's missing.
+              // This can happen if user exists in Auth but not Firestore (e.g., first-time admin creation).
                if(firebaseUser.email === 'admin@foneflow.com') {
                   const userData: User = {
                     id: firebaseUser.uid,
@@ -74,13 +72,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     name: 'Default Admin',
                     role: 'admin',
                   };
-                  await setDoc(userDocRef, userData);
-                  setUser(userData);
+                  try {
+                    await setDoc(userDocRef, userData);
+                    setUser(userData);
+                  } catch (e) {
+                     console.error("Error creating admin user doc:", e)
+                  }
                } else {
+                   // A regular user who doesn't have a doc for some reason.
+                   // This is an inconsistent state, so treat as logged out.
                    setUser(null);
                }
+               setIsLoading(false);
             }
-            setIsLoading(false);
           }, (error) => {
               console.error("Firestore snapshot error:", error);
               setUser(null);
@@ -114,3 +118,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+    

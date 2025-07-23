@@ -83,67 +83,64 @@ export default function Dashboard() {
   const isAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
-    if (isAuthLoading) {
-      return; // Wait until authentication is resolved
-    }
+    if (isAuthLoading) return;
     if (!currentUser) {
       router.replace('/login');
-      return; // Redirect if not logged in
+      return;
     }
 
     setIsDataLoading(true);
-    const unsubs: (() => void)[] = [];
 
-    const setupSubscription = (collectionName: string, queryConstraints: any[], setter: React.Dispatch<any>) => {
-      try {
-        const q = query(collection(db, collectionName), ...queryConstraints);
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-          const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setter(data);
-        }, (error) => {
-          console.error(`Error fetching ${collectionName}:`, error);
-          toast({ title: `Error fetching ${collectionName}`, description: "Please check your connection or database permissions.", variant: "destructive"});
-        });
-        unsubs.push(unsubscribe);
-        return Promise.resolve();
-      } catch (error) {
-        console.error(`Failed to set up subscription for ${collectionName}:`, error);
-        return Promise.reject(error);
-      }
-    };
-    
-    const fetchAllData = async () => {
-        const userConstraint = currentUser.id ? [where("userId", "==", currentUser.id)] : [];
-        const promises = [];
+    const subscriptions: (() => void)[] = [];
+    const collectionsToFetch = ['orders', 'cards', 'transactions'];
+    if (isAdmin) {
+        collectionsToFetch.push('users');
+    }
 
-        if (isAdmin) {
-            promises.push(setupSubscription('users', [], setUsers));
-            promises.push(setupSubscription('orders', [], setOrders));
-            promises.push(setupSubscription('cards', [], setCards));
-            promises.push(setupSubscription('transactions', [], setTransactions));
-        } else {
-            setUsers([currentUser]);
-            promises.push(setupSubscription('orders', userConstraint, setOrders));
-            promises.push(setupSubscription('cards', userConstraint, setCards));
-            promises.push(setupSubscription('transactions', userConstraint, setTransactions));
-        }
+    let loadedCount = 0;
 
-        try {
-            await Promise.all(promises);
-        } catch (error) {
-            toast({ title: "Data Fetching Error", description: "Failed to load some essential application data.", variant: "destructive" });
-        } finally {
+    const onDataLoaded = () => {
+        loadedCount++;
+        if (loadedCount === collectionsToFetch.length) {
             setIsDataLoading(false);
         }
     };
+    
+    // Define setters in a map for easier access
+    const setters: { [key: string]: React.Dispatch<any> } = {
+        orders: setOrders,
+        users: setUsers,
+        cards: setCards,
+        transactions: setTransactions
+    };
 
-    fetchAllData();
+    collectionsToFetch.forEach(collectionName => {
+        const queryConstraints = (!isAdmin && collectionName !== 'users') 
+            ? [where("userId", "==", currentUser.id)] 
+            : [];
+        
+        const q = query(collection(db, collectionName), ...queryConstraints);
+
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setters[collectionName](data);
+            onDataLoaded();
+        }, (error) => {
+            console.error(`Error fetching ${collectionName}:`, error);
+            toast({ title: `Error fetching ${collectionName}`, description: "Please check your connection or database permissions.", variant: "destructive"});
+            setIsDataLoading(false); // Stop loading on error
+        });
+        subscriptions.push(unsubscribe);
+    });
+    
+    if (!isAdmin) {
+        setUsers([currentUser]);
+    }
 
     return () => {
-      unsubs.forEach(unsub => unsub());
+      subscriptions.forEach(unsub => unsub());
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, isAuthLoading, router, isAdmin]);
+  }, [currentUser, isAuthLoading, router, isAdmin, toast]);
 
 
   const handleDeleteOrder = async (orderId: string) => {
@@ -399,8 +396,10 @@ export default function Dashboard() {
     const soldOrders = filteredOrders.filter(o => o.sellingPrice);
     const totalInvested = filteredOrders.reduce((sum, o) => sum + o.orderedPrice, 0);
     const totalInvestedAfterCashback = filteredOrders.reduce((sum, o) => sum + (o.orderedPrice - (o.cashback || 0)), 0);
-    const totalFromTransactions = transactions.reduce((sum, t) => sum + t.amount, 0);
-    const totalReceived = totalFromTransactions;
+    
+    // Consider all transactions for an admin, but filter for a user.
+    const relevantTransactions = isAdmin ? transactions : transactions.filter(t => t.userId === currentUser?.id);
+    const totalReceived = relevantTransactions.reduce((sum, t) => sum + t.amount, 0);
 
     const totalSellingPrice = soldOrders.reduce((sum, o) => sum + (o.sellingPrice || 0), 0);
     const profitFromSoldPhones = soldOrders.reduce((sum, o) => sum + (o.sellingPrice! - (o.orderedPrice - (o.cashback || 0))), 0);
@@ -417,7 +416,7 @@ export default function Dashboard() {
       totalProfit,
       avgProfit
     };
-  }, [filteredOrders, transactions]);
+  }, [filteredOrders, transactions, isAdmin, currentUser]);
   
   const userCashback = useMemo(() => {
     let ordersToConsider: Order[];
@@ -435,14 +434,17 @@ export default function Dashboard() {
   
   const creditCardBills = useMemo(() => {
     const bills = new Map<string, number>();
-    
-    cards.forEach(card => {
-        const cardOrders = orders.filter(o => o.cardId === card.id);
+    const relevantCards = isAdmin ? cards : cards.filter(c => c.userId === currentUser?.id);
+    const relevantOrders = isAdmin ? orders : orders.filter(o => o.userId === currentUser?.id);
+    const relevantTransactions = isAdmin ? transactions : transactions.filter(t => t.userId === currentUser?.id);
+
+    relevantCards.forEach(card => {
+        const cardOrders = relevantOrders.filter(o => o.cardId === card.id);
         const totalSpent = cardOrders.reduce((sum, o) => sum + o.orderedPrice, 0);
         bills.set(card.id, totalSpent);
     });
 
-    transactions.forEach(transaction => {
+    relevantTransactions.forEach(transaction => {
         if (transaction.cardId && bills.has(transaction.cardId)) {
             const currentBill = bills.get(transaction.cardId) || 0;
             bills.set(transaction.cardId, currentBill - transaction.amount);
@@ -450,7 +452,7 @@ export default function Dashboard() {
     });
 
     return bills;
-  }, [orders, cards, transactions]);
+  }, [orders, cards, transactions, isAdmin, currentUser]);
 
 
   const resetFilters = () => {
@@ -926,3 +928,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+    
