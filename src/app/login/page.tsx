@@ -40,7 +40,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      router.replace('/');
+      router.push('/');
     }
   }, [user, isLoading, router]);
 
@@ -49,7 +49,7 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({ title: "Success", description: "Logged in successfully." });
-      // The useAuth hook will handle the redirect on state change
+      // The useAuth hook's useEffect will handle the redirect
     } catch (error) {
       toast({
         title: "Error",
