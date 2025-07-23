@@ -38,7 +38,9 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // Redirect only when authentication is no longer loading and a user object exists.
+    // This effect handles redirection.
+    // It will run whenever the authentication state changes.
+    // If loading is finished and a user exists, redirect to the dashboard.
     if (!isLoading && user) {
       router.push('/');
     }
@@ -49,7 +51,7 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({ title: "Success", description: "Logged in successfully." });
-      // The `useAuth` hook will handle the user state update,
+      // The `useAuth` hook will update the user state,
       // and the `useEffect` above will handle the redirect.
     } catch (error) {
       toast({
@@ -74,58 +76,70 @@ export default function LoginPage() {
   }
   
   // If not loading and no user, show the login form.
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <div className="flex items-center mb-8">
-        <Smartphone className="h-8 w-8 mr-3 text-primary"/>
-        <h1 className="text-4xl font-bold font-headline text-primary">
-          FoneFlow
-        </h1>
+  // This also prevents the form from appearing briefly before redirection.
+  if (!isLoading && !user) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <div className="flex items-center mb-8">
+          <Smartphone className="h-8 w-8 mr-3 text-primary"/>
+          <h1 className="text-4xl font-bold font-headline text-primary">
+            FoneFlow
+          </h1>
+        </div>
+        <Card className="w-full max-w-sm shadow-2xl">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">Login</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="Enter your email" {...field} disabled={isSubmitting} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Enter your password" {...field} disabled={isSubmitting} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
+                  Login
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+        <p className="mt-8 text-sm text-muted-foreground text-center">
+          Default admin email: <span className="font-bold">{defaultAdminEmail}</span><br/>Password: <span className="font-bold">{defaultAdminPassword}</span>
+        </p>
       </div>
-      <Card className="w-full max-w-sm shadow-2xl">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">Login</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="Enter your email" {...field} disabled={isSubmitting} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="Enter your password" {...field} disabled={isSubmitting} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
-                Login
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-      <p className="mt-8 text-sm text-muted-foreground text-center">
-        Default admin email: <span className="font-bold">{defaultAdminEmail}</span><br/>Password: <span className="font-bold">{defaultAdminPassword}</span>
-      </p>
-    </div>
+    );
+  }
+
+  // If loading is finished and a user exists, this will be rendered briefly
+  // while the useEffect redirects. Can also be a loading spinner.
+  return (
+     <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-4">Redirecting to dashboard...</p>
+      </div>
   );
 }

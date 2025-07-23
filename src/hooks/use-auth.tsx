@@ -3,7 +3,7 @@
 
 import { useState, useEffect, createContext, useContext, type ReactNode } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { User } from '@/lib/types';
 import { toast } from './use-toast';
@@ -20,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
 
 let adminCheckCompleted = false;
 
+// This function runs once to ensure the default admin exists in Firebase Auth & Firestore.
 const checkAndCreateAdmin = async () => {
     if (adminCheckCompleted) return;
     adminCheckCompleted = true;
@@ -28,9 +29,12 @@ const checkAndCreateAdmin = async () => {
     const defaultAdminPassword = 'Admin@123';
 
     try {
+        // The createUser API is idempotent for this purpose. 
+        // If the user already exists, it will throw 'auth/email-already-in-use', which we catch.
         const userCredential = await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
         const user = userCredential.user;
-        // After creating the user in Auth, create their document in Firestore
+        
+        // If creation is successful, create their document in Firestore.
         const userDocRef = doc(db, 'users', user.uid);
         const userData: User = {
             id: user.uid,
@@ -39,11 +43,12 @@ const checkAndCreateAdmin = async () => {
             role: 'admin',
         };
         await setDoc(userDocRef, userData);
-        // Important: Sign out immediately so this initial setup doesn't affect the user's login flow.
+        
+        // Sign out immediately so this setup doesn't affect the user's login flow.
         await auth.signOut();
     } catch (error: any) {
         if (error.code === 'auth/email-already-in-use') {
-            // This is expected and fine. The admin user already exists.
+            // This is expected if the admin already exists. No action needed.
         } else {
             console.error("Critical Error: Could not create default admin user:", error);
             toast({
@@ -60,16 +65,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Run the one-time admin check before setting up the auth listener.
     checkAndCreateAdmin();
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
+        // If a user is logged in, listen for changes to their document in Firestore.
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const unsubSnapshot = onSnapshot(userDocRef, (docSnap) => {
-          setIsLoading(true);
           if (docSnap.exists()) {
             setUser({ id: docSnap.id, ...docSnap.data() } as User);
           } else {
+            // This case can happen if a user exists in Auth but not Firestore.
             setUser(null);
           }
           setIsLoading(false);
@@ -78,14 +85,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUser(null);
             setIsLoading(false);
         });
-        return () => unsubSnapshot();
+        return () => unsubSnapshot(); // Cleanup the Firestore listener.
       } else {
+        // If no user is logged in, update the state.
         setUser(null);
         setIsLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribe(); // Cleanup the Auth listener.
   }, []);
 
   return (

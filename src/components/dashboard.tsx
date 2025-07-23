@@ -83,54 +83,65 @@ export default function Dashboard() {
   const isAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
-    if (isAuthLoading) return; 
-    
-    if (!currentUser) {
+    // Wait until auth is resolved. If no user, redirect to login.
+    if (!isAuthLoading && !currentUser) {
         router.replace('/login');
         return;
     }
 
+    // If there's no current user yet, don't attempt to fetch data.
+    if (!currentUser) return;
+
     setIsDataLoading(true);
-    
+    const unsubs: (()=>void)[] = [];
+
+    // Define collections and their respective state setters.
     const collectionsToFetch = [
       { name: 'orders', setter: setOrders },
       { name: 'transactions', setter: setTransactions },
       { name: 'cards', setter: setCards },
-      { name: 'users', setter: setUsers },
     ];
     
-    const unsubs: (()=>void)[] = [];
+    // For admins, also fetch all users.
+    if (isAdmin) {
+      collectionsToFetch.push({ name: 'users', setter: setUsers });
+    } else {
+      // For non-admins, the `users` state is just the current user.
+      setUsers([currentUser]);
+    }
 
-    const fetchData = () => {
-      collectionsToFetch.forEach(col => {
+    const promises = collectionsToFetch.map(col => {
+      return new Promise<void>((resolve, reject) => {
         let q;
+        // Non-admins can only see their own data for these collections.
         if (!isAdmin && ['orders', 'cards', 'transactions'].includes(col.name)) {
           q = query(collection(db, col.name), where("userId", "==", currentUser.id));
-        } else if (!isAdmin && col.name === 'users') {
-          setUsers([currentUser]);
-          return;
         } else {
           q = query(collection(db, col.name));
         }
-  
+
         const unsubscribe = onSnapshot(q, 
           (querySnapshot) => {
               const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
               col.setter(data as any);
+              resolve();
           }, 
           (error) => {
               console.error(`Error fetching ${col.name}:`, error);
               toast({ title: `Error fetching ${col.name}`, description: "Please check your connection or database permissions.", variant: "destructive"});
+              reject(error);
           }
         );
         unsubs.push(unsubscribe);
       });
+    });
 
-      Promise.all(unsubs).finally(() => setIsDataLoading(false))
-    }
+    // Once all data fetching is complete, set loading to false.
+    Promise.all(promises).finally(() => {
+      setIsDataLoading(false)
+    });
 
-    fetchData();
-
+    // Cleanup listeners on component unmount.
     return () => {
       unsubs.forEach(unsub => unsub());
     };
@@ -451,7 +462,8 @@ export default function Dashboard() {
     setDealerFilter("all");
   };
 
-  // The main loading condition for the entire dashboard
+  // The main loading condition for the entire dashboard.
+  // Show spinner if we are still verifying auth or if data is being fetched.
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
