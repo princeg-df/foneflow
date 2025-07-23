@@ -1,3 +1,4 @@
+
 // src/components/dashboard.tsx
 "use client"
 
@@ -98,10 +99,11 @@ export default function Dashboard() {
     }
 
     let loadedCount = 0;
+    const totalCollections = collectionsToFetch.length + (isAdmin ? 0 : 1); // +1 for the single user if not admin
 
     const onDataLoaded = () => {
         loadedCount++;
-        if (loadedCount === collectionsToFetch.length) {
+        if (loadedCount === totalCollections) {
             setIsDataLoading(false);
         }
     };
@@ -115,26 +117,36 @@ export default function Dashboard() {
     };
 
     collectionsToFetch.forEach(collectionName => {
-        const queryConstraints = (!isAdmin && collectionName !== 'users') 
-            ? [where("userId", "==", currentUser.id)] 
-            : [];
-        
-        const q = query(collection(db, collectionName), ...queryConstraints);
-
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setters[collectionName](data);
-            onDataLoaded();
-        }, (error) => {
-            console.error(`Error fetching ${collectionName}:`, error);
-            toast({ title: `Error fetching ${collectionName}`, description: "Please check your connection or database permissions.", variant: "destructive"});
-            setIsDataLoading(false); // Stop loading on error
-        });
-        subscriptions.push(unsubscribe);
+      let q;
+      if (isAdmin) {
+          q = query(collection(db, collectionName));
+      } else {
+          // For non-admins, they can only get their own documents
+          q = query(collection(db, collectionName), where("userId", "==", currentUser.id));
+      }
+      
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+          const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setters[collectionName](data);
+          onDataLoaded();
+      }, (error) => {
+          console.error(`Error fetching ${collectionName}:`, error);
+          toast({ title: `Error fetching ${collectionName}`, description: "Please check your connection or database permissions.", variant: "destructive"});
+          setIsDataLoading(false); // Stop loading on error
+      });
+      subscriptions.push(unsubscribe);
     });
     
     if (!isAdmin) {
-        setUsers([currentUser]);
+        // If not admin, we only fetch the current user's data
+        const userDocRef = doc(db, 'users', currentUser.id);
+        const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setUsers([{ id: docSnap.id, ...docSnap.data() } as User]);
+            }
+            onDataLoaded();
+        });
+        subscriptions.push(unsubscribeUser);
     }
 
     return () => {
@@ -162,6 +174,8 @@ export default function Dashboard() {
         return;
     }
     try {
+      // Note: This only deletes the Firestore user document, not the Firebase Auth user.
+      // For a full user deletion, you would need to use Firebase Admin SDK on a backend.
       await deleteDoc(doc(db, "users", userId));
       toast({ title: "Success!", description: "User deleted successfully." });
     } catch (error) {
@@ -238,8 +252,13 @@ export default function Dashboard() {
         }
 
         const batch = writeBatch(db);
+        const existingEmails = new Set(users.map(u => u.email));
 
-        data.users.forEach((user: User) => batch.set(doc(db, "users", user.id), user));
+        data.users.forEach((user: User) => {
+            if (!existingEmails.has(user.email)) {
+                batch.set(doc(db, "users", user.id), user)
+            }
+        });
         data.cards.forEach((card: CreditCard) => batch.set(doc(db, "cards", card.id), card));
         data.orders.forEach((order: any) => {
             const orderData = { ...order, orderDate: Timestamp.fromDate(new Date(order.orderDate)), deliveryDate: order.deliveryDate ? Timestamp.fromDate(new Date(order.deliveryDate)) : null };
@@ -928,5 +947,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
-    
