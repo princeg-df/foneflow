@@ -1,46 +1,66 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Function to get the user's role from the /users collection
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
 
-    // Helper function to check if a user is an admin
+    // Function to check if the user is an admin
     function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return getUserRole() == 'admin';
     }
 
-    // Helper function to check if the user is the owner of the document
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // Users can be read by admins or by the user themselves.
-    // Users can be created by anyone (for signup).
-    // Users can only be updated or deleted by themselves or by an admin.
+    // USERS collection
+    // Admins can read and write any user document.
+    // Users can read their own document.
     match /users/{userId} {
-      allow read: if isAdmin() || isOwner(userId);
-      allow create: if request.auth.uid != null;
-      allow update, delete: if isAdmin() || isOwner(userId);
+      allow read: if request.auth.uid == userId || isAdmin();
+      allow write: if isAdmin();
     }
 
-    // Orders, Cards, and Transactions can be read by admins or the owner.
-    // They can be created, updated, and deleted by the owner.
+    // ORDERS collection
+    // Users can manage their own orders. Admins can manage any order.
     match /orders/{orderId} {
-      allow read, write: if isAdmin() || isOwner(request.resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update, delete: if isAdmin() || isOwner(resource.data.userId);
+      // Allow read/delete if user is admin or the document's userId matches their own.
+      allow read, delete: if isAdmin() || resource.data.userId == request.auth.uid;
+      // Allow create if user is admin or they are setting their own userId.
+      allow create: if isAdmin() || request.resource.data.userId == request.auth.uid;
+      // Allow update if user is admin or they are updating their own document.
+      allow update: if isAdmin() || resource.data.userId == request.auth.uid;
+    }
+    
+    // Allow users to list their own orders, and admins to list all orders
+    match /orders/{document=**} {
+        allow list: if isAdmin() || (request.query.limit > 0 && request.query.filters[0].value == request.auth.uid);
     }
 
+    // CARDS collection
+    // Users can manage their own cards. Admins can manage any card.
     match /cards/{cardId} {
-      allow read, write: if isAdmin() || isOwner(request.resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update, delete: if isAdmin() || isOwner(resource.data.userId);
+      allow read, delete: if isAdmin() || resource.data.userId == request.auth.uid;
+      allow create: if isAdmin() || request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || resource.data.userId == request.auth.uid;
     }
 
+    // Allow users to list their own cards, and admins to list all cards
+    match /cards/{document=**} {
+        allow list: if isAdmin() || (request.query.limit > 0 && request.query.filters[0].value == request.auth.uid);
+    }
+
+    // TRANSACTIONS collection
+    // Users can manage their own transactions. Admins can manage any transaction.
     match /transactions/{transactionId} {
-      allow read, write: if isAdmin() || isOwner(request.resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update, delete: if isAdmin() || isOwner(resource.data.userId);
+      allow read, delete: if isAdmin() || resource.data.userId == request.auth.uid;
+      allow create: if isAdmin() || request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || resource.data.userId == request.auth.uid;
+    }
+
+    // Allow users to list their own transactions, and admins to list all transactions
+    match /transactions/{document=**} {
+        allow list: if isAdmin() || (request.query.limit > 0 && request.query.filters[0].value == request.auth.uid);
     }
   }
 }
