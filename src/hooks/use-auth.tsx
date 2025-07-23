@@ -32,28 +32,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const defaultAdminPassword = 'Qwerty@123';
         
         try {
-            // Attempt to sign in to check if the user exists.
-            await signInWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
-            await auth.signOut(); // Sign out immediately after check
+            // Attempt to create the user. If they already exist, Firebase will throw an error.
+            const userCredential = await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
+            const adminUser: Omit<User, 'id'> = {
+                name: 'Prince',
+                email: defaultAdminEmail,
+                role: 'admin',
+            };
+            await setDoc(doc(db, "users", userCredential.user.uid), adminUser);
+            console.log("Default admin user created successfully.");
+            // Since we just created the user, they are now logged in. We should sign them out
+            // to allow for a clean login flow on the login page.
+            await auth.signOut();
         } catch (error: any) {
-            // If user does not exist, create them
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                console.log("Default admin not found, creating one...");
-                try {
-                    const userCredential = await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
-                    const adminUser: Omit<User, 'id'> = {
-                        name: 'Prince',
-                        email: defaultAdminEmail,
-                        role: 'admin',
-                    };
-                    await setDoc(doc(db, "users", userCredential.user.uid), adminUser);
-                    console.log("Default admin user created successfully.");
-                    await auth.signOut(); // Sign out after creation
-                } catch (creationError) {
-                    console.error("Error creating default admin user:", creationError);
-                }
+            // If the user already exists, Firebase returns this specific error code.
+            // We can safely ignore it, as it means our admin user is already set up.
+            if (error.code === 'auth/email-already-in-use') {
+                // Admin already exists, this is not an error.
             } else {
-                console.error("Error checking for admin user:", error);
+                // For other errors (e.g., network issues), log them.
+                console.error("Error checking/creating default admin user:", error);
             }
         }
     };
