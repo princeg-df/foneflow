@@ -4,12 +4,13 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "foneflow",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDXai5SE3wpyW0qo2cbQMrGCZJ40LLgYjI",
+  authDomain: "foneflow-6d122.firebaseapp.com",
+  projectId: "foneflow-6d122",
+  storageBucket: "foneflow-6d122.appspot.com",
+  messagingSenderId: "220460888013",
+  appId: "1:220460888013:web:c888aac02058d4a2cd1e84",
+  measurementId: "G-75JDW3V68N"
 };
 
 // Initialize Firebase
