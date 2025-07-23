@@ -2,11 +2,10 @@
 "use client";
 
 import { useState, useEffect, createContext, useContext, type ReactNode } from 'react';
-import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, type User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { User } from '@/lib/types';
-import { createUserWithEmailAndPassword } from "firebase/auth";
 import { toast } from './use-toast';
 
 interface AuthContextType {
@@ -22,81 +21,75 @@ const AuthContext = createContext<AuthContextType>({
 // A flag to ensure the admin check runs only once per application lifecycle.
 let adminCheckCompleted = false;
 
+const checkAndCreateAdmin = async () => {
+    if (adminCheckCompleted) return;
+    adminCheckCompleted = true;
+
+    const defaultAdminEmail = 'princegupta619@gmail.com';
+    const defaultAdminPassword = 'Qwerty@123';
+    
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
+        const adminUser: Omit<User, 'id'> = {
+            name: 'Prince',
+            email: defaultAdminEmail,
+            role: 'admin',
+        };
+        await setDoc(doc(db, "users", userCredential.user.uid), adminUser);
+        await auth.signOut();
+    } catch (error: any) {
+        if (error.code !== 'auth/email-already-in-use') {
+            console.error("Critical Error: Could not create default admin user:", error);
+            toast({
+                title: "Setup Error",
+                description: "Could not create the default admin user.",
+                variant: "destructive"
+            });
+        }
+    }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const checkAndCreateAdmin = async () => {
-        if (adminCheckCompleted) return;
-        adminCheckCompleted = true;
-
-        const defaultAdminEmail = 'princegupta619@gmail.com';
-        const defaultAdminPassword = 'Qwerty@123';
-        
-        try {
-            // This is a more robust way to handle one-time setup.
-            // It attempts to create the user, and if it fails because the user already exists,
-            // we can safely ignore the error.
-            const userCredential = await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
-            const adminUser: Omit<User, 'id'> = {
-                name: 'Prince',
-                email: defaultAdminEmail,
-                role: 'admin',
-            };
-            // Use the created user's UID for the document ID
-            await setDoc(doc(db, "users", userCredential.user.uid), adminUser);
-            // After successful creation, sign the user out so it doesn't interfere with the normal login flow.
-            await auth.signOut();
-        } catch (error: any) {
-            // 'auth/email-already-in-use' is the expected error if the admin already exists.
-            // We can safely ignore it and proceed.
-            if (error.code !== 'auth/email-already-in-use') {
-                console.error("Error creating default admin user:", error);
-                toast({
-                    title: "Setup Error",
-                    description: "Could not create the default admin user.",
-                    variant: "destructive"
-                });
-            }
-        }
-    };
-
+    // Run the admin check once on startup.
     checkAndCreateAdmin();
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        // If a user is logged in, listen for their data from Firestore.
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const unsubSnapshot = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             setUser({ id: docSnap.id, ...docSnap.data() } as User);
           } else {
-            // This case can happen if the user was deleted from Firestore but not from Auth.
-            // Treat them as logged out.
+            // User authenticated in Firebase Auth but no record in Firestore.
+            // This can happen if the user is deleted from the DB but not Auth.
+            // Log them out to be safe.
             setUser(null);
+            auth.signOut();
           }
-          setIsLoading(false); // Stop loading only after we have the user data.
+          setIsLoading(false);
         }, (error) => {
             console.error("Firestore snapshot error:", error);
             toast({
                 title: "Database Connection Error",
-                description: "Could not fetch user profile. Please try again later.",
+                description: "Could not fetch user profile.",
                 variant: "destructive",
             });
             setUser(null);
             setIsLoading(false);
         });
-        return () => unsubSnapshot(); // Return the Firestore listener unsubscriber.
+        return () => unsubSnapshot(); // Unsubscribe from Firestore listener
       } else {
-        // If no user is logged in, set user to null and stop loading.
+        // No firebase user, so not logged in.
         setUser(null);
         setIsLoading(false);
       }
     });
 
-    // The returned function will be called on component unmount.
-    return () => unsubscribe();
+    return () => unsubscribe(); // Unsubscribe from Auth listener
   }, []);
 
   return (

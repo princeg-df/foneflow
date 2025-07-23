@@ -27,7 +27,7 @@ const defaultAdminEmail = 'princegupta619@gmail.com';
 const defaultAdminPassword = 'Qwerty@123';
 
 export default function LoginPage() {
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -45,23 +45,23 @@ export default function LoginPage() {
   }, [user, isLoading, router]);
 
   async function onSubmit(data: LoginFormValues) {
-    setIsLoggingIn(true);
+    setIsSubmitting(true);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({ title: "Success", description: "Logged in successfully." });
-      // The useAuth hook's onAuthStateChanged listener will trigger the user
-      // state update, and the useEffect hook will handle the redirect.
+      // The `useAuth` hook will handle the user state update,
+      // and the `useEffect` above will handle the redirect.
     } catch (error) {
       toast({
         title: "Error",
         description: "Incorrect email or password. Please try again.",
         variant: "destructive",
       });
-      setIsLoggingIn(false);
+      setIsSubmitting(false);
     }
   }
-
-  // Show a loading screen while the auth state is being determined.
+  
+  // While the auth state is being determined, show a loading screen.
   // This prevents a "flash" of the login form if the user is already logged in.
   if (isLoading) {
     return (
@@ -71,7 +71,7 @@ export default function LoginPage() {
       </div>
     );
   }
-
+  
   // If after loading, the user object exists, it means the redirect is in progress.
   // We can show the loading screen as well to avoid the form flashing.
   if(user) {
@@ -83,6 +83,7 @@ export default function LoginPage() {
     );
   }
 
+  // If not loading and no user, show the login form.
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <div className="flex items-center mb-8">
@@ -105,7 +106,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="Enter your email" {...field} disabled={isLoggingIn} />
+                      <Input type="email" placeholder="Enter your email" {...field} disabled={isSubmitting} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -118,14 +119,14 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter your password" {...field} disabled={isLoggingIn} />
+                      <Input type="password" placeholder="Enter your password" {...field} disabled={isSubmitting} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoggingIn}>
-                {isLoggingIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
                 Login
               </Button>
             </form>

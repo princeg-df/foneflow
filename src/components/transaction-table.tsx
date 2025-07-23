@@ -1,7 +1,7 @@
 // src/components/transaction-table.tsx
 "use client"
 
-import type { Transaction, CreditCard } from "@/lib/types"
+import type { Transaction, CreditCard, User } from "@/lib/types"
 import {
   Table,
   TableBody,
@@ -27,13 +27,15 @@ import { Timestamp } from "firebase/firestore"
 interface TransactionTableProps {
   transactions: Transaction[];
   cards: CreditCard[];
+  users: User[];
   onEditTransaction: (transaction: Transaction) => void;
   onDeleteTransaction: (transaction: Transaction) => void;
 }
 
-export default function TransactionTable({ transactions, cards, onEditTransaction, onDeleteTransaction }: TransactionTableProps) {
+export default function TransactionTable({ transactions, cards, users, onEditTransaction, onDeleteTransaction }: TransactionTableProps) {
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)
   const cardMap = new Map(cards.map(c => [c.id, `${c.name} (....${c.cardNumber.slice(-4)})`]));
+  const userMap = new Map(users.map(u => [u.id, u.name]));
 
   return (
     <div className="rounded-md border">
@@ -42,6 +44,7 @@ export default function TransactionTable({ transactions, cards, onEditTransactio
           <TableRow>
             <TableHead>Date</TableHead>
             <TableHead>Dealer</TableHead>
+            <TableHead>User</TableHead>
             <TableHead>Description</TableHead>
             <TableHead>Credit Card</TableHead>
             <TableHead>Payment Mode</TableHead>
@@ -52,7 +55,7 @@ export default function TransactionTable({ transactions, cards, onEditTransactio
         <TableBody>
           {transactions.length === 0 ? (
              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                 No transactions found.
                 </TableCell>
             </TableRow>
@@ -63,6 +66,7 @@ export default function TransactionTable({ transactions, cards, onEditTransactio
                     <TableRow key={transaction.id}>
                     <TableCell>{format(transactionDate, 'MMM d, yyyy')}</TableCell>
                     <TableCell className="font-medium">{transaction.dealer}</TableCell>
+                    <TableCell>{userMap.get(transaction.userId) || 'Unknown'}</TableCell>
                     <TableCell className="text-muted-foreground">{transaction.description || 'N/A'}</TableCell>
                     <TableCell>{cardMap.get(transaction.cardId) || 'N/A'}</TableCell>
                     <TableCell>

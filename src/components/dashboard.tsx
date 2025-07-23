@@ -1,4 +1,3 @@
-
 // src/components/dashboard.tsx
 "use client"
 
@@ -48,6 +47,8 @@ import { useAuth } from "@/hooks/use-auth"
 
 export default function Dashboard() {
   const { user: currentUser, isLoading: isAuthLoading } = useAuth();
+  const router = useRouter();
+
   const [orders, setOrders] = useState<Order[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [cards, setCards] = useState<CreditCard[]>([])
@@ -75,7 +76,6 @@ export default function Dashboard() {
   const [isLogoutAlertOpen, setLogoutAlertOpen] = useState(false);
   const [isResetAlertOpen, setResetAlertOpen] = useState(false);
   const { toast } = useToast()
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isImportAlertOpen, setImportAlertOpen] = useState(false)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
@@ -83,52 +83,53 @@ export default function Dashboard() {
   const isAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
-    if (isAuthLoading) return; // Wait for authentication to resolve
-
+    // Wait for authentication to resolve
+    if (isAuthLoading) return; 
+    
+    // If auth is resolved and there's no user, redirect to login
     if (!currentUser) {
         router.replace('/login');
         return;
     }
 
+    // If we have a user, proceed to fetch data
     setIsDataLoading(true);
 
     const collectionsToFetch = [
       { name: 'orders', setter: setOrders },
-      { name: 'users', setter: setUsers, adminOnly: true },
+      { name: 'transactions', setter: setTransactions },
       { name: 'cards', setter: setCards },
-      { name: 'transactions', setter: setTransactions, adminOnly: true }
+      { name: 'users', setter: setUsers },
     ];
 
     const unsubscribers = collectionsToFetch.map(col => {
       let q;
-      if (col.name === 'users' && !isAdmin) {
-          // If not admin, only fetch the current user's data
-          setUsers([currentUser]);
-          return () => {}; // No-op for users collection
-      } else if ((col.name === 'orders' || col.name === 'cards' || col.name === 'transactions') && !isAdmin) {
-          // Non-admins only see their own data for these collections
-          q = query(collection(db, col.name), where("userId", "==", currentUser.id));
+      // Admins see all data. Non-admins only see their own.
+      if (!isAdmin && ['orders', 'cards', 'transactions'].includes(col.name)) {
+        q = query(collection(db, col.name), where("userId", "==", currentUser.id));
+      } else if (!isAdmin && col.name === 'users') {
+        // Non-admin should only get their own user object.
+        setUsers([currentUser]);
+        return () => {}; // No listener needed.
       } else {
-          // Admin can see everything
-          q = query(collection(db, col.name));
+        q = query(collection(db, col.name));
       }
 
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        col.setter(data as any);
-      }, (error) => {
-        console.error(`Error fetching ${col.name}:`, error);
-        if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
-            toast({ title: `Authentication Error`, description: `You do not have permission to view ${col.name}.`, variant: "destructive"});
-        } else {
-            toast({ title: `Error fetching ${col.name}`, description: "Please check your connection or try again later.", variant: "destructive"});
+      const unsubscribe = onSnapshot(q, 
+        (querySnapshot) => {
+            const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            col.setter(data as any);
+        }, 
+        (error) => {
+            console.error(`Error fetching ${col.name}:`, error);
+            toast({ title: `Error fetching ${col.name}`, description: "Please check your connection or database permissions.", variant: "destructive"});
         }
-      });
+      );
       return unsubscribe;
     });
 
-    // A small delay to allow all listeners to attach and fetch initial data
-    const timer = setTimeout(() => setIsDataLoading(false), 1000);
+    // Let the data fetching settle
+    const timer = setTimeout(() => setIsDataLoading(false), 500);
 
     // Cleanup function
     return () => {
@@ -452,6 +453,7 @@ export default function Dashboard() {
     setDealerFilter("all");
   };
 
+  // The main loading condition for the entire dashboard
   if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -461,6 +463,7 @@ export default function Dashboard() {
     );
   }
 
+  // From this point on, we have a currentUser and the initial data load is complete.
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -691,6 +694,7 @@ export default function Dashboard() {
                   <TransactionTable 
                     transactions={transactions} 
                     cards={cards}
+                    users={users}
                     onEditTransaction={setTransactionToEdit} 
                     onDeleteTransaction={setTransactionToDelete} 
                   />
@@ -917,5 +921,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
-    
