@@ -43,7 +43,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/s
 import { Separator } from "@/components/ui/separator"
 import { auth, db } from "@/lib/firebase"
 import { signOut } from "firebase/auth"
-import { collection, onSnapshot, query, doc, deleteDoc, getDocs, writeBatch, Timestamp } from "firebase/firestore"
+import { collection, onSnapshot, query, where, doc, deleteDoc, getDocs, writeBatch, Timestamp } from "firebase/firestore"
 import { useAuth } from "@/hooks/use-auth"
 
 export default function Dashboard() {
@@ -83,40 +83,59 @@ export default function Dashboard() {
   const isAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
-    if (isAuthLoading) return;
+    if (isAuthLoading) return; // Wait for authentication to resolve
+
     if (!currentUser) {
-      router.replace('/login');
-      return;
+        router.replace('/login');
+        return;
     }
 
-    const collectionsToWatch = ['orders', 'users', 'cards', 'transactions'];
-    const setters:any = {
-      orders: setOrders,
-      users: setUsers,
-      cards: setCards,
-      transactions: setTransactions
-    }
-    
     setIsDataLoading(true);
-    const unsubscribers = collectionsToWatch.map(coll => {
-      // Non-admins should not listen to the 'users' collection
-      if (coll === 'users' && !isAdmin) return () => {};
-      
-      const q = query(collection(db, coll));
-      return onSnapshot(q, (querySnapshot) => {
+
+    const collectionsToFetch = [
+      { name: 'orders', setter: setOrders },
+      { name: 'users', setter: setUsers, adminOnly: true },
+      { name: 'cards', setter: setCards },
+      { name: 'transactions', setter: setTransactions, adminOnly: true }
+    ];
+
+    const unsubscribers = collectionsToFetch.map(col => {
+      let q;
+      if (col.name === 'users' && !isAdmin) {
+          // If not admin, only fetch the current user's data
+          setUsers([currentUser]);
+          return () => {}; // No-op for users collection
+      } else if ((col.name === 'orders' || col.name === 'cards' || col.name === 'transactions') && !isAdmin) {
+          // Non-admins only see their own data for these collections
+          q = query(collection(db, col.name), where("userId", "==", currentUser.id));
+      } else {
+          // Admin can see everything
+          q = query(collection(db, col.name));
+      }
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setters[coll](data);
+        col.setter(data as any);
       }, (error) => {
-        console.error(`Error fetching ${coll}:`, error);
-        toast({ title: `Error fetching ${coll}`, description: "Please try again later.", variant: "destructive"});
+        console.error(`Error fetching ${col.name}:`, error);
+        if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
+            toast({ title: `Authentication Error`, description: `You do not have permission to view ${col.name}.`, variant: "destructive"});
+        } else {
+            toast({ title: `Error fetching ${col.name}`, description: "Please check your connection or try again later.", variant: "destructive"});
+        }
       });
-    })
-    
-    setIsDataLoading(false);
+      return unsubscribe;
+    });
 
-    return () => unsubscribers.forEach(unsub => unsub());
+    // A small delay to allow all listeners to attach and fetch initial data
+    const timer = setTimeout(() => setIsDataLoading(false), 1000);
 
-  }, [currentUser, isAdmin, toast, isAuthLoading, router]);
+    // Cleanup function
+    return () => {
+      clearTimeout(timer);
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, [currentUser, isAuthLoading, router, isAdmin, toast]);
 
 
   const handleDeleteOrder = async (orderId: string) => {
@@ -251,7 +270,7 @@ export default function Dashboard() {
   const confirmLogout = async () => {
     try {
       await signOut(auth);
-      // The useAuth hook will handle the redirect
+      router.push('/login');
     } catch (error) {
       toast({ title: "Error", description: "Failed to log out.", variant: "destructive" });
     } finally {
@@ -266,8 +285,8 @@ export default function Dashboard() {
   const confirmResetData = async () => {
     try {
         const batch = writeBatch(db);
-        const collections = ["orders", "cards", "transactions"];
-        for (const col of collections) {
+        const collectionsToDelete = ["orders", "cards", "transactions"];
+        for (const col of collectionsToDelete) {
             const snapshot = await getDocs(collection(db, col));
             snapshot.docs.forEach(doc => batch.delete(doc.ref));
         }
@@ -433,7 +452,7 @@ export default function Dashboard() {
     setDealerFilter("all");
   };
 
-  if (isAuthLoading || isDataLoading || !currentUser) {
+  if (isAuthLoading || isDataLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -482,7 +501,7 @@ export default function Dashboard() {
                   </Button>
               </>
             )}
-             <div className="flex items-center gap-2 border-l ml-2 pl-4">
+             {currentUser && <div className="flex items-center gap-2 border-l ml-2 pl-4">
                 <div className="text-right">
                     <p className="font-semibold text-sm">{currentUser.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">{currentUser.role}</p>
@@ -495,7 +514,7 @@ export default function Dashboard() {
                   <LogOut className="h-5 w-5" />
                   <span className="sr-only">Logout</span>
                 </Button>
-             </div>
+             </div>}
           </div>
 
           <div className="md:hidden">
@@ -507,7 +526,7 @@ export default function Dashboard() {
                     </Button>
                 </SheetTrigger>
                 <SheetContent>
-                    <div className="flex flex-col gap-4 py-4">
+                    {currentUser && <div className="flex flex-col gap-4 py-4">
                         <div className="mb-2">
                            <p className="font-semibold text-lg">{currentUser.name}</p>
                            <p className="text-sm text-muted-foreground capitalize">{currentUser.role}</p>
@@ -553,7 +572,7 @@ export default function Dashboard() {
                                 Logout
                             </Button>
                         </SheetClose>
-                    </div>
+                    </div>}
                 </SheetContent>
             </Sheet>
           </div>
@@ -898,3 +917,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+    

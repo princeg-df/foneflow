@@ -1,4 +1,3 @@
-
 // src/app/login/page.tsx
 "use client";
 
@@ -39,6 +38,7 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
+    // Redirect only when authentication is no longer loading and a user object exists.
     if (!isLoading && user) {
       router.push('/');
     }
@@ -49,7 +49,8 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       toast({ title: "Success", description: "Logged in successfully." });
-      // The useAuth hook's useEffect will handle the redirect
+      // The useAuth hook's onAuthStateChanged listener will trigger the user
+      // state update, and the useEffect hook will handle the redirect.
     } catch (error) {
       toast({
         title: "Error",
@@ -60,11 +61,24 @@ export default function LoginPage() {
     }
   }
 
-  if (isLoading || user) {
+  // Show a loading screen while the auth state is being determined.
+  // This prevents a "flash" of the login form if the user is already logged in.
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-4">Loading...</p>
+        <p className="ml-4">Authenticating...</p>
+      </div>
+    );
+  }
+
+  // If after loading, the user object exists, it means the redirect is in progress.
+  // We can show the loading screen as well to avoid the form flashing.
+  if(user) {
+     return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-4">Redirecting to dashboard...</p>
       </div>
     );
   }
