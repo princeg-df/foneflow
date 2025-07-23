@@ -10,6 +10,7 @@ import type { User } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { toast } from './use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -32,7 +33,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const defaultAdminPassword = 'Qwerty@123';
         
         try {
-            // Attempt to create the user. If they already exist, Firebase will throw an error.
             const userCredential = await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
             const adminUser: Omit<User, 'id'> = {
                 name: 'Prince',
@@ -40,17 +40,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 role: 'admin',
             };
             await setDoc(doc(db, "users", userCredential.user.uid), adminUser);
-            console.log("Default admin user created successfully.");
-            // Since we just created the user, they are now logged in. We should sign them out
-            // to allow for a clean login flow on the login page.
             await auth.signOut();
         } catch (error: any) {
-            // If the user already exists, Firebase returns this specific error code.
-            // We can safely ignore it, as it means our admin user is already set up.
             if (error.code === 'auth/email-already-in-use') {
                 // Admin already exists, this is not an error.
             } else {
-                // For other errors (e.g., network issues), log them.
                 console.error("Error checking/creating default admin user:", error);
             }
         }
@@ -65,12 +59,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (docSnap.exists()) {
             setUser({ id: docSnap.id, ...docSnap.data() } as User);
           } else {
-            // This case might happen if a user is in Auth but not in Firestore.
-            // For this app's logic, we log them out.
             auth.signOut();
             setUser(null);
           }
           setIsLoading(false);
+        },
+        (error) => {
+            console.error("Firestore snapshot error:", error);
+            toast({
+                title: "Database Connection Error",
+                description: "Could not connect to the database. Please ensure Firestore is enabled in your Firebase project.",
+                variant: "destructive",
+                duration: 10000,
+            });
+            auth.signOut();
+            setUser(null);
+            setIsLoading(false);
         });
         return () => unsubSnapshot();
       } else {
