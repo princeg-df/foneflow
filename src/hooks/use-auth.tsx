@@ -29,16 +29,13 @@ const checkAndCreateAdmin = async () => {
     const defaultAdminPassword = 'Qwerty@123';
     
     try {
-        const userCredential = await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
-        const adminUser: Omit<User, 'id'> = {
-            name: 'Prince',
-            email: defaultAdminEmail,
-            role: 'admin',
-        };
-        await setDoc(doc(db, "users", userCredential.user.uid), adminUser);
+        await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
+        // This is a side-effect to create the user doc. We can sign out immediately.
         await auth.signOut();
     } catch (error: any) {
-        if (error.code !== 'auth/email-already-in-use') {
+        if (error.code === 'auth/email-already-in-use') {
+            // This is expected and fine. The admin user already exists.
+        } else {
             console.error("Critical Error: Could not create default admin user:", error);
             toast({
                 title: "Setup Error",
@@ -59,6 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
+        // User is logged in Firebase Auth, now get their profile from Firestore.
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const unsubSnapshot = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
@@ -75,7 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.error("Firestore snapshot error:", error);
             toast({
                 title: "Database Connection Error",
-                description: "Could not fetch user profile.",
+                description: "Could not fetch user profile. Please ensure Firestore is enabled in your Firebase project.",
                 variant: "destructive",
             });
             setUser(null);

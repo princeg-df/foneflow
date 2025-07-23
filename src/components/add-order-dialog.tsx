@@ -114,7 +114,9 @@ export default function AddOrderDialog({ users, cards, order, isOpen, onOpenChan
   })
 
   useEffect(() => {
-    form.reset(getInitialValues());
+    if (open) {
+        form.reset(getInitialValues());
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order, open]);
   
@@ -130,10 +132,13 @@ export default function AddOrderDialog({ users, cards, order, isOpen, onOpenChan
       id,
       orderDate: Timestamp.fromDate(data.orderDate),
       deliveryDate: data.deliveryDate ? Timestamp.fromDate(data.deliveryDate) : null,
+      sellingPrice: data.sellingPrice ?? null,
+      dealer: data.dealer ?? null,
+      cashback: data.cashback ?? 0,
     };
 
     try {
-      await setDoc(doc(db, "orders", id), orderData);
+      await setDoc(doc(db, "orders", id), orderData, { merge: true });
       toast({
           title: `Success!`,
           description: `Order has been ${isEditMode ? 'updated' : 'added'}.`,

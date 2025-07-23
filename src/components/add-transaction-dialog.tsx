@@ -121,7 +121,9 @@ export default function AddTransactionDialog({ transaction, isOpen, onOpenChange
   const filteredCards = cards.filter(card => card.userId === selectedUserId);
 
   useEffect(() => {
-    form.reset(getInitialValues());
+    if (open) {
+      form.reset(getInitialValues());
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transaction, open]);
 
@@ -132,10 +134,11 @@ export default function AddTransactionDialog({ transaction, isOpen, onOpenChange
       id,
       date: Timestamp.fromDate(data.date),
       onlinePaymentType: data.paymentMode === 'online' ? data.onlinePaymentType : undefined,
+      description: data.description ?? null,
     };
     
     try {
-        await setDoc(doc(db, "transactions", id), transactionData);
+        await setDoc(doc(db, "transactions", id), transactionData, { merge: true });
         toast({
             title: `Success!`,
             description: `Transaction has been ${isEditMode ? 'updated' : 'added'}.`,

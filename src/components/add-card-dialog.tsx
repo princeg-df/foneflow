@@ -68,12 +68,14 @@ export default function AddCardDialog({ users, card, isOpen, onOpenChange, onSuc
   })
 
   useEffect(() => {
-    if (card) {
-      form.reset(card as CardFormValues);
-    } else {
-      form.reset({ name: "", cardNumber: "", userId: undefined });
+    if (open) {
+      if (card) {
+        form.reset(card as CardFormValues);
+      } else {
+        form.reset({ name: "", cardNumber: "", userId: "" });
+      }
     }
-  }, [card, form]);
+  }, [card, form, open]);
 
   async function onSubmit(data: CardFormValues) {
     const id = isEditMode ? (card as CreditCard).id : doc(collection(db, 'cards')).id;
@@ -86,7 +88,6 @@ export default function AddCardDialog({ users, card, isOpen, onOpenChange, onSuc
           description: `Credit card has been ${isEditMode ? 'updated' : 'added'}.`,
       });
       setOpen(false);
-      form.reset();
       if(onSuccess) onSuccess();
     } catch (error) {
       console.error("Error saving card: ", error);

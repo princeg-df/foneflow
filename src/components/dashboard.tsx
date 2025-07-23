@@ -83,58 +83,56 @@ export default function Dashboard() {
   const isAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
-    // Wait for authentication to resolve
     if (isAuthLoading) return; 
     
-    // If auth is resolved and there's no user, redirect to login
     if (!currentUser) {
         router.replace('/login');
         return;
     }
 
-    // If we have a user, proceed to fetch data
     setIsDataLoading(true);
-
+    
     const collectionsToFetch = [
       { name: 'orders', setter: setOrders },
       { name: 'transactions', setter: setTransactions },
       { name: 'cards', setter: setCards },
       { name: 'users', setter: setUsers },
     ];
+    
+    const unsubs: (()=>void)[] = [];
 
-    const unsubscribers = collectionsToFetch.map(col => {
-      let q;
-      // Admins see all data. Non-admins only see their own.
-      if (!isAdmin && ['orders', 'cards', 'transactions'].includes(col.name)) {
-        q = query(collection(db, col.name), where("userId", "==", currentUser.id));
-      } else if (!isAdmin && col.name === 'users') {
-        // Non-admin should only get their own user object.
-        setUsers([currentUser]);
-        return () => {}; // No listener needed.
-      } else {
-        q = query(collection(db, col.name));
-      }
-
-      const unsubscribe = onSnapshot(q, 
-        (querySnapshot) => {
-            const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            col.setter(data as any);
-        }, 
-        (error) => {
-            console.error(`Error fetching ${col.name}:`, error);
-            toast({ title: `Error fetching ${col.name}`, description: "Please check your connection or database permissions.", variant: "destructive"});
+    const fetchData = () => {
+      collectionsToFetch.forEach(col => {
+        let q;
+        if (!isAdmin && ['orders', 'cards', 'transactions'].includes(col.name)) {
+          q = query(collection(db, col.name), where("userId", "==", currentUser.id));
+        } else if (!isAdmin && col.name === 'users') {
+          setUsers([currentUser]);
+          return;
+        } else {
+          q = query(collection(db, col.name));
         }
-      );
-      return unsubscribe;
-    });
+  
+        const unsubscribe = onSnapshot(q, 
+          (querySnapshot) => {
+              const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              col.setter(data as any);
+          }, 
+          (error) => {
+              console.error(`Error fetching ${col.name}:`, error);
+              toast({ title: `Error fetching ${col.name}`, description: "Please check your connection or database permissions.", variant: "destructive"});
+          }
+        );
+        unsubs.push(unsubscribe);
+      });
 
-    // Let the data fetching settle
-    const timer = setTimeout(() => setIsDataLoading(false), 500);
+      Promise.all(unsubs).finally(() => setIsDataLoading(false))
+    }
 
-    // Cleanup function
+    fetchData();
+
     return () => {
-      clearTimeout(timer);
-      unsubscribers.forEach(unsub => unsub());
+      unsubs.forEach(unsub => unsub());
     };
   }, [currentUser, isAuthLoading, router, isAdmin, toast]);
 
