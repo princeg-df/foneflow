@@ -1,3 +1,4 @@
+// src/components/add-transaction-dialog.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -43,6 +44,8 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { db } from "@/lib/firebase"
+import { doc, setDoc, Timestamp } from "firebase/firestore"
 
 const transactionSchema = z.object({
   date: z.date({ required_error: "Transaction date is required." }),
@@ -66,16 +69,16 @@ const transactionSchema = z.object({
 type TransactionFormValues = z.infer<typeof transactionSchema>
 
 interface AddTransactionDialogProps {
-  onAddTransaction: (transaction: Transaction) => void
   transaction?: Transaction | null
   isOpen?: boolean
   onOpenChange?: (open: boolean) => void
   users: User[];
   cards: CreditCard[];
   currentUser: User | null;
+  onSuccess?: () => void;
 }
 
-export default function AddTransactionDialog({ onAddTransaction, transaction, isOpen, onOpenChange, users, cards, currentUser }: AddTransactionDialogProps) {
+export default function AddTransactionDialog({ transaction, isOpen, onOpenChange, users, cards, currentUser, onSuccess }: AddTransactionDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const { toast } = useToast()
 
@@ -90,6 +93,7 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
     if (isEditMode && transaction) {
        return { 
         ...transaction, 
+        date: transaction.date instanceof Timestamp ? transaction.date.toDate() : transaction.date,
         description: transaction.description ?? "" ,
         onlinePaymentType: transaction.onlinePaymentType ?? undefined,
       }
@@ -120,22 +124,33 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transaction, form]);
 
-  function onSubmit(data: TransactionFormValues) {
-    const newTransaction: Transaction = {
+  async function onSubmit(data: TransactionFormValues) {
+    const id = isEditMode && transaction ? transaction.id : doc(doc(db, 'transactions', 'placeholder')).id;
+    const transactionData = {
       ...data,
-      id: isEditMode && transaction ? transaction.id : `txn_${new Date().getTime()}`,
-      description: data.description,
+      id,
+      date: Timestamp.fromDate(data.date),
       onlinePaymentType: data.paymentMode === 'online' ? data.onlinePaymentType : undefined,
-    }
-    onAddTransaction(newTransaction)
-    toast({
-        title: `Success!`,
-        description: `Transaction has been ${isEditMode ? 'updated' : 'added'}.`,
-        variant: "default",
-    })
-    setOpen(false)
-    if (!isEditMode) {
-      form.reset()
+    };
+    
+    try {
+        await setDoc(doc(db, "transactions", id), transactionData);
+        toast({
+            title: `Success!`,
+            description: `Transaction has been ${isEditMode ? 'updated' : 'added'}.`,
+        })
+        setOpen(false)
+        if (!isEditMode) {
+          form.reset()
+        }
+        if (onSuccess) onSuccess();
+    } catch(e) {
+        console.error("Error adding transaction: ", e);
+         toast({
+            title: `Error`,
+            description: `Could not save transaction. Please try again.`,
+            variant: "destructive"
+        })
     }
   }
 
@@ -203,7 +218,7 @@ export default function AddTransactionDialog({ onAddTransaction, transaction, is
                         <Select onValueChange={field.onChange} value={field.value} disabled={!selectedUserId}>
                             <FormControl>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select a card" />
+                                <SelectValue placeholder="Select a card for payment" />
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>

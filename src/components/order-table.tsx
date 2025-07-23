@@ -1,3 +1,4 @@
+// src/components/order-table.tsx
 "use client"
 
 import type { Order, User, CreditCard } from "@/lib/types"
@@ -22,6 +23,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal } from "lucide-react"
+import { Timestamp } from "firebase/firestore"
 
 interface OrderTableProps {
   orders: Order[];
@@ -69,6 +71,8 @@ export default function OrderTable({ orders, users, cards, onEditOrder, onDelete
               const netCost = order.orderedPrice - (order.cashback || 0)
               const profit = order.sellingPrice ? order.sellingPrice - netCost : undefined
               const profitPercentage = profit !== undefined && netCost > 0 ? (profit / netCost) * 100 : undefined
+              const orderDate = order.orderDate instanceof Timestamp ? order.orderDate.toDate() : order.orderDate;
+              const deliveryDate = order.deliveryDate ? (order.deliveryDate instanceof Timestamp ? order.deliveryDate.toDate() : order.deliveryDate) : null;
 
               return (
                 <TableRow key={order.id} className="transition-colors hover:bg-muted/50">
@@ -77,8 +81,8 @@ export default function OrderTable({ orders, users, cards, onEditOrder, onDelete
                     <div className="text-xs text-muted-foreground">{order.variant}</div>
                   </TableCell>
                   <TableCell>{userMap.get(order.userId) || 'Unknown'}</TableCell>
-                  <TableCell>{format(new Date(order.orderDate), 'MMM d, yyyy')}</TableCell>
-                  <TableCell>{order.deliveryDate ? format(new Date(order.deliveryDate), 'MMM d, yyyy') : 'N/A'}</TableCell>
+                  <TableCell>{format(orderDate, 'MMM d, yyyy')}</TableCell>
+                  <TableCell>{deliveryDate ? format(deliveryDate, 'MMM d, yyyy') : 'N/A'}</TableCell>
                   <TableCell className="text-right">{formatCurrency(order.orderedPrice)}</TableCell>
                   <TableCell className="text-right text-green-600">{formatCurrency(order.cashback || 0)}</TableCell>
                   <TableCell>{cardMap.get(order.cardId) || 'Unknown'}</TableCell>

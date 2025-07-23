@@ -1,8 +1,8 @@
+// src/components/dashboard.tsx
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
 import type { Order, User, CreditCard, Transaction } from "@/lib/types"
-import useLocalStorage from "@/hooks/use-local-storage"
 import StatCard from "@/components/stat-card"
 import OrderTable from "@/components/order-table"
 import UserTable from "@/components/user-table"
@@ -18,10 +18,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw, PlusCircle, UserPlus, AlertCircle, Menu } from "lucide-react"
+import { Calendar as CalendarIcon, Smartphone, DollarSign, TrendingUp, CreditCard as CreditCardIcon, Users, XCircle, Download, Upload, Settings, LogOut, FileText, Landmark, RotateCw, AlertCircle, Menu, Loader2 } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import type { DateRange } from "react-day-picker"
-import { addDays, format, isAfter, isBefore, isEqual } from "date-fns"
+import { format, isAfter, isBefore, isEqual } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import jsPDF from "jspdf";
@@ -40,32 +40,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils"
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
-
-
-const initialUsers: User[] = []
-
-const initialCards: CreditCard[] = []
-
-const initialOrders: Order[] = [];
-
-const initialTransactions: Transaction[] = [];
-
-const defaultAdminUser: User = {
-  id: 'user_admin',
-  name: 'Prince',
-  email: 'princegupta619@gmail.com',
-  password: 'admin',
-  role: 'admin',
-};
+import { auth, db } from "@/lib/firebase"
+import { onAuthStateChanged, signOut } from "firebase/auth"
+import { collection, onSnapshot, query, doc, deleteDoc, getDoc, getDocs, writeBatch, Timestamp } from "firebase/firestore"
 
 export default function Dashboard() {
-  const [orders, setOrders] = useLocalStorage<Order[]>("foneflow-orders", initialOrders)
-  const [users, setUsers] = useLocalStorage<User[]>("foneflow-users", initialUsers);
-  const [cards, setCards] = useLocalStorage<CreditCard[]>("foneflow-cards", initialCards);
-  const [transactions, setTransactions] = useLocalStorage<Transaction[]>("foneflow-transactions", initialTransactions);
-  const [currentUser, setCurrentUser] = useLocalStorage<User | null>('foneflow-currentUser', null);
-  const [isClient, setIsClient] = useState(false);
-
+  const [orders, setOrders] = useState<Order[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [cards, setCards] = useState<CreditCard[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [userFilter, setUserFilter] = useState<string>("all")
@@ -92,120 +77,116 @@ export default function Dashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isImportAlertOpen, setImportAlertOpen] = useState(false)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (isClient && !currentUser) {
-      router.replace('/login');
-    }
-  }, [currentUser, router, isClient]);
-
-  useEffect(() => {
-    // Deduplicate users on mount
-    const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
-    if (uniqueUsers.length !== users.length) {
-      setUsers(uniqueUsers);
-    }
-  }, [setUsers, users]);
   
   const isAdmin = currentUser?.role === 'admin';
 
-  const handleAddOrder = (order: Order) => {
-    setOrders((prev) => {
-        const existingOrder = prev.find(o => o.id === order.id);
-        if (existingOrder) {
-            return prev.map(o => o.id === order.id ? order : o);
-        }
-        return [order, ...prev];
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setCurrentUser({ id: docSnap.id, ...docSnap.data() } as User);
+          } else {
+            signOut(auth);
+          }
+        });
+        return () => unsubscribeUser();
+      } else {
+        router.replace('/login');
+      }
     });
-  }
 
-  const handleDeleteOrder = (orderId: string) => {
-    setOrders((prev) => prev.filter(o => o.id !== orderId))
-    setOrderToDelete(null)
-    toast({ title: "Success!", description: "Order deleted successfully." });
+    return () => unsubscribeAuth();
+  }, [router]);
+  
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const collectionsToWatch = ['orders', 'users', 'cards', 'transactions'];
+    const setters:any = {
+      orders: setOrders,
+      users: setUsers,
+      cards: setCards,
+      transactions: setTransactions
+    }
+
+    const unsubscribers = collectionsToWatch.map(coll => {
+      if (coll === 'users' && !isAdmin) return () => {};
+      
+      const q = query(collection(db, coll));
+      return onSnapshot(q, (querySnapshot) => {
+        const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setters[coll](data);
+      }, (error) => {
+        console.error(`Error fetching ${coll}:`, error);
+        toast({ title: `Error fetching ${coll}`, description: "Please try again later.", variant: "destructive"});
+      });
+    })
+    
+    setIsLoading(false);
+
+    return () => unsubscribers.forEach(unsub => unsub());
+
+  }, [currentUser, isAdmin, toast]);
+
+
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      await deleteDoc(doc(db, "orders", orderId));
+      toast({ title: "Success!", description: "Order deleted successfully." });
+    } catch (error) {
+      toast({ title: "Error", description: "Could not delete order.", variant: "destructive" });
+    } finally {
+      setOrderToDelete(null)
+    }
   };
   
-  const handleAddUser = (user: User) => {
-    setUsers((prev) => {
-        const existingUser = prev.find(u => u.id === user.id);
-        if (existingUser) {
-            return prev.map(u => u.id === user.id ? user : u);
-        }
-        return [user, ...prev];
-    });
-  };
-
-  const handleDeleteUser = (userId: string) => {
-    const userToDelete = users.find(u => u.id === userId);
-    if (userToDelete?.role === 'admin') {
-      const adminCount = users.filter(u => u.role === 'admin').length;
-      if(adminCount <= 1) {
+  const handleDeleteUser = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user?.role === 'admin' && users.filter(u => u.role === 'admin').length <= 1) {
         toast({ title: "Error", description: "Cannot delete the last admin.", variant: "destructive" });
         setUserToDelete(null);
         return;
-      }
     }
-
-    const hasCards = cards.some(c => c.userId === userId);
-    const hasOrders = orders.some(o => o.userId === userId);
-    if(hasCards || hasOrders) {
-        toast({ title: "Error", description: "Cannot delete user with associated cards or orders.", variant: "destructive" });
-        setUserToDelete(null);
-        return;
+    try {
+      await deleteDoc(doc(db, "users", userId));
+      toast({ title: "Success!", description: "User deleted successfully." });
+    } catch (error) {
+       toast({ title: "Error", description: "Could not delete user.", variant: "destructive" });
+    } finally {
+      setUserToDelete(null);
     }
-    setUsers((prev) => prev.filter(u => u.id !== userId));
-    setUserToDelete(null);
-    toast({ title: "Success!", description: "User deleted successfully." });
   };
 
-  const handleAddCard = (card: CreditCard) => {
-    setCards((prev) => {
-        const existingCard = prev.find(c => c.id === card.id);
-        if (existingCard) {
-            return prev.map(c => c.id === card.id ? card : c);
-        }
-        return [card, ...prev];
-    });
-  };
-
-  const handleDeleteCard = (cardId: string) => {
-    const hasOrders = orders.some(o => o.cardId === cardId);
-    if (hasOrders) {
-      toast({ title: "Error", description: "Cannot delete card with associated orders.", variant: "destructive" });
+  const handleDeleteCard = async (cardId: string) => {
+    try {
+      await deleteDoc(doc(db, "cards", cardId));
+      toast({ title: "Success!", description: "Card deleted successfully." });
+    } catch (error) {
+      toast({ title: "Error", description: "Could not delete card.", variant: "destructive" });
+    } finally {
       setCardToDelete(null);
-      return;
     }
-    setCards((prev) => prev.filter(c => c.id !== cardId));
-    setCardToDelete(null);
-    toast({ title: "Success!", description: "Card deleted successfully." });
   };
 
-  const handleAddTransaction = (transaction: Transaction) => {
-    setTransactions((prev) => {
-      const existing = prev.find(t => t.id === transaction.id);
-      if (existing) {
-        return prev.map(t => t.id === transaction.id ? transaction : t);
-      }
-      return [transaction, ...prev];
-    });
-  }
-
-  const handleDeleteTransaction = (transactionId: string) => {
-    setTransactions((prev) => prev.filter(t => t.id !== transactionId));
-    setTransactionToDelete(null);
-    toast({ title: "Success!", description: "Transaction deleted successfully." });
+  const handleDeleteTransaction = async (transactionId: string) => {
+    try {
+      await deleteDoc(doc(db, "transactions", transactionId));
+      toast({ title: "Success!", description: "Transaction deleted successfully." });
+    } catch (error) {
+      toast({ title: "Error", description: "Could not delete transaction.", variant: "destructive" });
+    } finally {
+      setTransactionToDelete(null);
+    }
   };
 
   const handleExportJson = () => {
     const data = {
       users,
       cards,
-      orders,
-      transactions,
+      orders: orders.map(o => ({...o, orderDate: (o.orderDate as Timestamp).toDate(), deliveryDate: o.deliveryDate ? (o.deliveryDate as Timestamp).toDate() : null})),
+      transactions: transactions.map(t => ({...t, date: (t.date as Timestamp).toDate()})),
     };
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
     const link = document.createElement("a");
@@ -228,11 +209,11 @@ export default function Dashboard() {
     fileInputRef.current?.click();
   };
 
-  const handleImportConfirm = () => {
+  const handleImportConfirm = async () => {
     if (!pendingFile) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const text = e.target?.result;
         if (typeof text !== 'string') {
@@ -240,26 +221,26 @@ export default function Dashboard() {
         }
         const data = JSON.parse(text);
 
-        if (Array.isArray(data.users) && Array.isArray(data.cards) && Array.isArray(data.orders)) {
-          const parsedOrders = data.orders.map((o: any) => ({
-            ...o,
-            orderDate: new Date(o.orderDate),
-            deliveryDate: o.deliveryDate ? new Date(o.deliveryDate) : undefined,
-          }))
-          const parsedTransactions = (data.transactions || []).map((t: any) => ({
-            ...t,
-            date: new Date(t.date),
-          }))
-
-          setUsers(data.users);
-          setCards(data.cards);
-          setOrders(parsedOrders);
-          setTransactions(parsedTransactions);
-
-          toast({ title: "Success!", description: "Data imported successfully." });
-        } else {
+        if (!data.users || !data.cards || !data.orders || !data.transactions) {
           throw new Error("Invalid JSON structure.");
         }
+
+        const batch = writeBatch(db);
+
+        data.users.forEach((user: User) => batch.set(doc(db, "users", user.id), user));
+        data.cards.forEach((card: CreditCard) => batch.set(doc(db, "cards", card.id), card));
+        data.orders.forEach((order: any) => {
+            const orderData = { ...order, orderDate: Timestamp.fromDate(new Date(order.orderDate)), deliveryDate: order.deliveryDate ? Timestamp.fromDate(new Date(order.deliveryDate)) : null };
+            batch.set(doc(db, "orders", order.id), orderData)
+        });
+        data.transactions.forEach((transaction: any) => {
+             const transData = { ...transaction, date: Timestamp.fromDate(new Date(transaction.date)) };
+            batch.set(doc(db, "transactions", transaction.id), transData)
+        });
+
+        await batch.commit();
+
+        toast({ title: "Success!", description: "Data imported successfully." });
       } catch (error) {
         console.error("Import failed:", error);
         toast({
@@ -279,25 +260,43 @@ export default function Dashboard() {
     setLogoutAlertOpen(true);
   };
   
-  const confirmLogout = () => {
-    setCurrentUser(null)
-    router.replace('/login');
+  const confirmLogout = async () => {
+    try {
+      await signOut(auth);
+      router.replace('/login');
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to log out.", variant: "destructive" });
+    } finally {
+      setLogoutAlertOpen(false);
+    }
   }
 
   const handleResetData = () => {
     setResetAlertOpen(true);
   }
 
-  const confirmResetData = () => {
-    setOrders([]);
-    setCards([]);
-    setTransactions([]);
-    setUsers([defaultAdminUser]);
-    setResetAlertOpen(false);
-    toast({
-      title: "Application Reset",
-      description: "All data has been cleared successfully.",
-    });
+  const confirmResetData = async () => {
+    try {
+        const batch = writeBatch(db);
+        const collections = ["orders", "cards", "transactions"];
+        for (const col of collections) {
+            const snapshot = await getDocs(collection(db, col));
+            snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        }
+        await batch.commit();
+        toast({
+          title: "Application Reset",
+          description: "All non-user data has been cleared.",
+        });
+    } catch(e) {
+        toast({
+          title: "Error",
+          description: "Could not reset application data.",
+          variant: "destructive"
+        });
+    } finally {
+       setResetAlertOpen(false);
+    }
   }
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
@@ -312,19 +311,20 @@ export default function Dashboard() {
     doc.setFontSize(11);
     doc.text(`Report generated on: ${format(new Date(), "PPP")}`, 14, 30);
     
-    // Orders Table
     autoTable(doc, {
       startY: 40,
       head: [['Model', 'User', 'Order Date', 'Delivery Date', 'Price', 'Cashback', 'Net Cost', 'Selling Price', 'Profit', 'Profit %', 'Status']],
       body: filteredOrders.map(o => {
+        const orderDate = o.orderDate instanceof Timestamp ? o.orderDate.toDate() : o.orderDate;
+        const deliveryDate = o.deliveryDate ? (o.deliveryDate instanceof Timestamp ? o.deliveryDate.toDate() : o.deliveryDate) : null;
         const netCost = o.orderedPrice - (o.cashback || 0);
         const profit = o.sellingPrice ? o.sellingPrice - netCost : undefined;
         const profitPercentage = profit !== undefined && netCost > 0 ? (profit / netCost) * 100 : undefined;
         return [
           `${o.model}\n${o.variant}`,
           userMap.get(o.userId) || 'N/A',
-          format(new Date(o.orderDate), "P"),
-          o.deliveryDate ? format(new Date(o.deliveryDate), "P") : 'N/A',
+          format(orderDate, "P"),
+          deliveryDate ? format(deliveryDate, "P") : 'N/A',
           formatCurrencyPdf(o.orderedPrice),
           formatCurrencyPdf(o.cashback || 0),
           formatCurrencyPdf(netCost),
@@ -334,7 +334,7 @@ export default function Dashboard() {
           o.sellingPrice ? 'Sold' : 'In Stock'
         ];
       }),
-      headStyles: { fillColor: [0, 128, 128] }, // Teal color
+      headStyles: { fillColor: [0, 128, 128] },
       didDrawPage: (data) => {
          if (data.pageNumber === 1) {
             doc.setFontSize(16);
@@ -343,47 +343,25 @@ export default function Dashboard() {
       }
     });
 
-    const lastTableY = (doc as any).lastAutoTable.finalY || 40;
-    
-    // Transactions Table
-    autoTable(doc, {
-      startY: lastTableY + 20,
-      head: [['Date', 'Dealer', 'Amount', 'Payment Mode', 'Description']],
-      body: transactions.map(t => [
-        format(new Date(t.date), "P"),
-        t.dealer,
-        formatCurrencyPdf(t.amount),
-        `${t.paymentMode}${t.onlinePaymentType ? ` (${t.onlinePaymentType.replace('_', ' ')})` : ''}`,
-        t.description || 'N/A',
-      ]),
-      headStyles: { fillColor: [0, 128, 128] }, // Teal color
-       didDrawPage: (data) => {
-        doc.setFontSize(16);
-        doc.text("Transactions", 14, lastTableY + 18);
-      }
-    });
-
     doc.save(`foneflow-report-${new Date().toISOString().split('T')[0]}.pdf`);
     toast({ title: "Success!", description: "PDF report exported successfully." });
   };
 
 
-  const usersForFilter = isAdmin ? users : users.filter(u => u.id === currentUser?.id);
-  const cardsToDisplay = isAdmin ? cards : cards.filter(c => c.userId === currentUser?.id);
+  const usersForFilter = isAdmin ? users : (currentUser ? users.filter(u => u.id === currentUser.id) : []);
+  const cardsToDisplay = isAdmin ? cards : (currentUser ? cards.filter(c => c.userId === currentUser.id) : []);
 
   const uniqueDealers = useMemo(() => {
-    const relevantOrders = isAdmin ? orders : orders.filter(o => o.userId === currentUser?.id);
+    const relevantOrders = isAdmin ? orders : (currentUser ? orders.filter(o => o.userId === currentUser.id) : []);
     return ["all", ...Array.from(new Set(relevantOrders.filter(o => o.dealer).map(o => o.dealer!)))]
   }, [orders, isAdmin, currentUser]);
 
   const filteredOrders = useMemo(() => {
-    // If not admin, only show user's own orders
-    const baseOrders = isAdmin ? orders : orders.filter(o => o.userId === currentUser?.id);
+    const baseOrders = isAdmin ? orders : (currentUser ? orders.filter(o => o.userId === currentUser.id) : []);
 
     return baseOrders.filter(order => {
-      const orderDate = new Date(order.orderDate);
+      const orderDate = order.orderDate instanceof Timestamp ? order.orderDate.toDate() : order.orderDate;
       const inDateRange = !dateRange || (!dateRange.from || (isAfter(orderDate, dateRange.from) || isEqual(orderDate, dateRange.from))) && (!dateRange.to || (isBefore(orderDate, dateRange.to) || isEqual(orderDate, dateRange.to)));
-      // If admin is filtering for a user, use that filter. Otherwise, it's already pre-filtered for the current user.
       const userMatch = userFilter === 'all' || order.userId === userFilter;
       const cardMatch = cardFilter === "all" || order.cardId === cardFilter;
       const dealerMatch = dealerFilter === "all" || order.dealer === dealerFilter;
@@ -410,11 +388,8 @@ export default function Dashboard() {
     const totalReceived = totalFromTransactions;
 
     const totalSellingPrice = soldOrders.reduce((sum, o) => sum + (o.sellingPrice || 0), 0);
-    
     const profitFromSoldPhones = soldOrders.reduce((sum, o) => sum + (o.sellingPrice! - (o.orderedPrice - (o.cashback || 0))), 0);
-
     const totalProfit = profitFromSoldPhones;
-    
     const avgProfit = soldOrders.length > 0 ? totalProfit / soldOrders.length : 0;
     const totalPending = totalInvested - totalReceived;
     
@@ -437,7 +412,7 @@ export default function Dashboard() {
         ? orders 
         : orders.filter(o => o.userId === cashbackUserFilter);
     } else {
-      ordersToConsider = orders.filter(o => o.userId === currentUser?.id);
+      ordersToConsider = currentUser ? orders.filter(o => o.userId === currentUser.id) : [];
     }
     
     return ordersToConsider.reduce((sum, o) => sum + (o.cashback || 0), 0);
@@ -446,14 +421,12 @@ export default function Dashboard() {
   const creditCardBills = useMemo(() => {
     const bills = new Map<string, number>();
     
-    // Calculate total spent on each card from orders
     cards.forEach(card => {
         const cardOrders = orders.filter(o => o.cardId === card.id);
         const totalSpent = cardOrders.reduce((sum, o) => sum + o.orderedPrice, 0);
         bills.set(card.id, totalSpent);
     });
 
-    // Subtract payments made for each card from transactions
     transactions.forEach(transaction => {
         if (transaction.cardId && bills.has(transaction.cardId)) {
             const currentBill = bills.get(transaction.cardId) || 0;
@@ -472,10 +445,11 @@ export default function Dashboard() {
     setDealerFilter("all");
   };
 
-  if (!isClient || !currentUser) {
+  if (isLoading || !currentUser) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p>Loading...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-4">Loading application...</p>
       </div>
     );
   }
@@ -491,7 +465,6 @@ export default function Dashboard() {
             </h1>
           </div>
           
-          {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-2">
             {isAdmin && (
               <>
@@ -537,7 +510,6 @@ export default function Dashboard() {
              </div>
           </div>
 
-          {/* Mobile Menu */}
           <div className="md:hidden">
             <Sheet>
                 <SheetTrigger asChild>
@@ -629,7 +601,7 @@ export default function Dashboard() {
                   {
                     isAdmin 
                     ? (cashbackUserFilter === 'all' ? 'Across all users' : `For ${users.find(u => u.id === cashbackUserFilter)?.name || 'selected user'}`)
-                    : `For ${currentUser.name}`
+                    : (currentUser ? `For ${currentUser.name}`: '')
                   }
                 </p>
             </CardContent>
@@ -641,10 +613,10 @@ export default function Dashboard() {
              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <CardTitle>FoneFlow Hub</CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <AddOrderDialog onAddOrder={handleAddOrder} users={usersForFilter} cards={cards} currentUser={currentUser} />
-                    {isAdmin && <AddTransactionDialog onAddTransaction={handleAddTransaction} users={usersForFilter} cards={cards} currentUser={currentUser} />}
-                    <AddUserDialog onAddUser={handleAddUser} currentUser={currentUser} />
-                    <AddCardDialog onAddCard={handleAddCard} users={usersForFilter}/>
+                    <AddOrderDialog users={usersForFilter} cards={cards} currentUser={currentUser} onSuccess={() => {}} />
+                    {isAdmin && <AddTransactionDialog users={usersForFilter} cards={cards} currentUser={currentUser} onSuccess={() => {}} />}
+                    <AddUserDialog currentUser={currentUser} onSuccess={() => {}}/>
+                    <AddCardDialog users={usersForFilter} onSuccess={() => {}}/>
                 </div>
             </div>
           </CardHeader>
@@ -782,11 +754,11 @@ export default function Dashboard() {
           <AddOrderDialog
             isOpen={!!orderToEdit}
             onOpenChange={(isOpen) => !isOpen && setOrderToEdit(null)}
-            onAddOrder={handleAddOrder}
             users={usersForFilter}
             cards={cards}
             order={orderToEdit}
             currentUser={currentUser}
+            onSuccess={() => {}}
           />
         )}
 
@@ -811,11 +783,11 @@ export default function Dashboard() {
           <AddTransactionDialog
             isOpen={!!transactionToEdit}
             onOpenChange={(isOpen) => !isOpen && setTransactionToEdit(null)}
-            onAddTransaction={handleAddTransaction}
             transaction={transactionToEdit}
             users={usersForFilter}
             cards={cards}
             currentUser={currentUser}
+            onSuccess={() => {}}
           />
         )}
 
@@ -840,9 +812,9 @@ export default function Dashboard() {
           <AddUserDialog
             isOpen={!!userToEdit}
             onOpenChange={(isOpen) => !isOpen && setUserToEdit(null)}
-            onAddUser={handleAddUser}
             user={userToEdit}
             currentUser={currentUser}
+            onSuccess={() => {}}
           />
         )}
 
@@ -867,9 +839,9 @@ export default function Dashboard() {
           <AddCardDialog
             isOpen={!!cardToEdit}
             onOpenChange={(isOpen) => !isOpen && setCardToEdit(null)}
-            onAddCard={handleAddCard}
             users={usersForFilter}
             card={cardToEdit}
+            onSuccess={() => {}}
           />
         )}
 
@@ -895,7 +867,7 @@ export default function Dashboard() {
               <AlertDialogHeader>
               <AlertDialogTitle>Are you sure you want to import data?</AlertDialogTitle>
               <AlertDialogDescription>
-                  This will overwrite all existing data (orders, users, cards, and transactions). This action cannot be undone.
+                  This will overwrite all existing data in Firestore. This action cannot be undone.
               </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -910,7 +882,7 @@ export default function Dashboard() {
               <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                  This action will permanently delete all orders, cards, transactions, and users (except for the default admin). This cannot be undone.
+                  This action will permanently delete all orders, cards, and transactions. Users will not be deleted. This cannot be undone.
               </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -941,5 +913,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
-    

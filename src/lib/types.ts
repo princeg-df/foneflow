@@ -1,13 +1,16 @@
+// src/lib/types.ts
+import type { Timestamp } from "firebase/firestore";
+
 export type Order = {
   id: string;
   model: string;
   variant: string;
-  orderDate: Date;
+  orderDate: Date | Timestamp;
   orderedPrice: number;
   cashback: number;
   cardId: string;
   userId: string;
-  deliveryDate?: Date;
+  deliveryDate?: Date | Timestamp | null;
   sellingPrice?: number;
   dealer?: string;
 };
@@ -16,7 +19,6 @@ export type User = {
     id: string;
     name: string;
     email: string;
-    password: string;
     role: 'admin' | 'user';
 }
 
@@ -29,7 +31,7 @@ export type CreditCard = {
 
 export type Transaction = {
     id: string;
-    date: Date;
+    date: Date | Timestamp;
     amount: number;
     dealer: string;
     description?: string;

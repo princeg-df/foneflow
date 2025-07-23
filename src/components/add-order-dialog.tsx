@@ -1,3 +1,4 @@
+// src/components/add-order-dialog.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -42,6 +43,8 @@ import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { db } from "@/lib/firebase"
+import { doc, setDoc, Timestamp } from "firebase/firestore"
 
 const orderSchema = z.object({
   model: z.string().min(2, "Model is required"),
@@ -59,16 +62,16 @@ const orderSchema = z.object({
 type OrderFormValues = z.infer<typeof orderSchema>
 
 interface AddOrderDialogProps {
-  onAddOrder: (order: Order) => void
   users: User[]
   cards: CreditCard[]
   order?: Order | null
   isOpen?: boolean
   onOpenChange?: (open: boolean) => void
   currentUser: User | null;
+  onSuccess?: () => void;
 }
 
-export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen, onOpenChange, currentUser }: AddOrderDialogProps) {
+export default function AddOrderDialog({ users, cards, order, isOpen, onOpenChange, currentUser, onSuccess }: AddOrderDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const { toast } = useToast()
 
@@ -83,8 +86,8 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
     if (isEditMode && order) {
       return {
         ...order,
-        orderDate: new Date(order.orderDate),
-        deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined,
+        orderDate: order.orderDate instanceof Timestamp ? order.orderDate.toDate() : order.orderDate,
+        deliveryDate: order.deliveryDate ? (order.deliveryDate instanceof Timestamp ? order.deliveryDate.toDate() : order.deliveryDate) : undefined,
         sellingPrice: order.sellingPrice ?? undefined,
         dealer: order.dealer ?? "",
         cashback: order.cashback ?? 0,
@@ -117,23 +120,35 @@ export default function AddOrderDialog({ onAddOrder, users, cards, order, isOpen
   const selectedUserId = form.watch("userId");
   const filteredCards = cards.filter(card => card.userId === selectedUserId);
 
-  function onSubmit(data: OrderFormValues) {
-    const newOrder: Order = {
+  async function onSubmit(data: OrderFormValues) {
+    const id = isEditMode && order ? order.id : doc(doc(db, 'orders', 'placeholder')).id;
+    
+    // Convert dates to Firestore Timestamps
+    const orderData = {
       ...data,
-      id: isEditMode && order ? order.id : `order_${new Date().getTime()}`,
-      cashback: data.cashback || 0,
-      sellingPrice: data.sellingPrice,
-      dealer: data.dealer,
-    }
-    onAddOrder(newOrder)
-    toast({
-        title: `Success!`,
-        description: `Order has been ${isEditMode ? 'updated' : 'added'}.`,
-        variant: "default",
-    })
-    setOpen(false)
-    if (!isEditMode) {
-      form.reset()
+      id,
+      orderDate: Timestamp.fromDate(data.orderDate),
+      deliveryDate: data.deliveryDate ? Timestamp.fromDate(data.deliveryDate) : null,
+    };
+
+    try {
+      await setDoc(doc(db, "orders", id), orderData);
+      toast({
+          title: `Success!`,
+          description: `Order has been ${isEditMode ? 'updated' : 'added'}.`,
+      });
+      setOpen(false);
+      if (!isEditMode) {
+        form.reset();
+      }
+      if(onSuccess) onSuccess();
+    } catch(e) {
+        console.error("Error adding document: ", e);
+        toast({
+            title: `Error`,
+            description: `Could not save order. Please try again.`,
+            variant: "destructive"
+        })
     }
   }
 

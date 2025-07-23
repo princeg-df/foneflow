@@ -1,3 +1,4 @@
+// src/components/transaction-table.tsx
 "use client"
 
 import type { Transaction, CreditCard } from "@/lib/types"
@@ -21,6 +22,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
+import { Timestamp } from "firebase/firestore"
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -55,43 +57,46 @@ export default function TransactionTable({ transactions, cards, onEditTransactio
                 </TableCell>
             </TableRow>
           ) : (
-            transactions.map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell>{format(new Date(transaction.date), 'MMM d, yyyy')}</TableCell>
-                  <TableCell className="font-medium">{transaction.dealer}</TableCell>
-                  <TableCell className="text-muted-foreground">{transaction.description || 'N/A'}</TableCell>
-                  <TableCell>{cardMap.get(transaction.cardId) || 'N/A'}</TableCell>
-                  <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                          {transaction.paymentMode}
-                          {transaction.onlinePaymentType && ` (${transaction.onlinePaymentType.replace('_', ' ')})`}
-                      </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-medium text-green-600">{formatCurrency(transaction.amount)}</TableCell>
-                   <TableCell className="text-right">
-                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => onEditTransaction(transaction)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                <span>Edit</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => onDeleteTransaction(transaction)} className="text-red-500 focus:text-red-500 focus:bg-red-50">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Delete</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
+            transactions.map((transaction) => {
+                const transactionDate = transaction.date instanceof Timestamp ? transaction.date.toDate() : transaction.date;
+                return (
+                    <TableRow key={transaction.id}>
+                    <TableCell>{format(transactionDate, 'MMM d, yyyy')}</TableCell>
+                    <TableCell className="font-medium">{transaction.dealer}</TableCell>
+                    <TableCell className="text-muted-foreground">{transaction.description || 'N/A'}</TableCell>
+                    <TableCell>{cardMap.get(transaction.cardId) || 'N/A'}</TableCell>
+                    <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                            {transaction.paymentMode}
+                            {transaction.onlinePaymentType && ` (${transaction.onlinePaymentType.replace('_', ' ')})`}
+                        </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-green-600">{formatCurrency(transaction.amount)}</TableCell>
+                    <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => onEditTransaction(transaction)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    <span>Edit</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => onDeleteTransaction(transaction)} className="text-red-500 focus:text-red-500 focus:bg-red-50">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Delete</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                    </TableRow>
+                )
+            })
           )}
         </TableBody>
       </Table>

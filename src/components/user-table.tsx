@@ -1,3 +1,4 @@
+// src/components/user-table.tsx
 "use client"
 
 import type { User } from "@/lib/types"
@@ -53,7 +54,7 @@ export default function UserTable({ users, onEditUser, onDeleteUser, currentUser
                   <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                      <Badge variant={user.role === 'admin' ? "default" : "secondary"}>
+                      <Badge variant={user.role === 'admin' ? "default" : "secondary"} className="capitalize">
                           {user.role}
                       </Badge>
                   </TableCell>

@@ -1,3 +1,4 @@
+// src/components/add-card-dialog.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -33,6 +34,8 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { doc, setDoc } from "firebase/firestore"
+import { db } from "@/lib/firebase"
 
 const cardSchema = z.object({
   name: z.string().min(2, "Card name is required"),
@@ -43,49 +46,55 @@ const cardSchema = z.object({
 type CardFormValues = z.infer<typeof cardSchema>
 
 interface AddCardDialogProps {
-  onAddCard: (card: CreditCard) => void;
   users: User[];
-  card?: CreditCard | null;
+  card?: Omit<CreditCard, 'id'> | CreditCard | null;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export default function AddCardDialog({ onAddCard, users, card, isOpen, onOpenChange }: AddCardDialogProps) {
+export default function AddCardDialog({ users, card, isOpen, onOpenChange, onSuccess }: AddCardDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const { toast } = useToast()
 
-  const isEditMode = !!card;
+  const isEditMode = !!(card && 'id' in card);
 
   const open = isOpen !== undefined ? isOpen : internalOpen;
   const setOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
 
   const form = useForm<CardFormValues>({
     resolver: zodResolver(cardSchema),
-    defaultValues: isEditMode ? card : { name: "", cardNumber: "" },
+    defaultValues: isEditMode ? card : { name: "", cardNumber: "", userId: "" },
   })
 
   useEffect(() => {
     if (card) {
-      form.reset(card);
+      form.reset(card as CardFormValues);
     } else {
       form.reset({ name: "", cardNumber: "", userId: undefined });
     }
   }, [card, form]);
 
-  function onSubmit(data: CardFormValues) {
-    const newCard: CreditCard = {
-      ...data,
-      id: isEditMode ? card.id : `card_${new Date().getTime()}`,
-    }
-    onAddCard(newCard)
-    toast({
-        title: "Success!",
-        description: `Credit card has been ${isEditMode ? 'updated' : 'added'}.`,
-        variant: "default",
-    })
-    setOpen(false)
-    if (!isEditMode) {
-      form.reset()
+  async function onSubmit(data: CardFormValues) {
+    const id = isEditMode ? (card as CreditCard).id : doc(doc(db, 'cards', 'placeholder')).id;
+    const cardData: CreditCard = { ...data, id };
+    
+    try {
+      await setDoc(doc(db, "cards", id), cardData);
+      toast({
+          title: "Success!",
+          description: `Credit card has been ${isEditMode ? 'updated' : 'added'}.`,
+      });
+      setOpen(false);
+      form.reset();
+      if(onSuccess) onSuccess();
+    } catch (error) {
+      console.error("Error saving card: ", error);
+      toast({
+        title: "Error",
+        description: "Could not save card. Please try again.",
+        variant: "destructive"
+      });
     }
   }
 

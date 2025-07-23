@@ -1,10 +1,11 @@
+// src/components/add-user-dialog.tsx
 "use client"
 
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { UserPlus, Save } from "lucide-react"
+import { UserPlus, Save, Loader2 } from "lucide-react"
 import type { User } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,29 +28,30 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import useLocalStorage from "@/hooks/use-local-storage"
+import { db } from "@/lib/firebase"
+import { doc, setDoc } from "firebase/firestore"
 
 const userSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address."),
-  password: z.string().min(4, "Password must be at least 4 characters long"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
   role: z.enum(["admin", "user"]),
 })
 
 type UserFormValues = z.infer<typeof userSchema>
 
 interface AddUserDialogProps {
-  onAddUser: (user: User) => void;
   user?: User | null;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   currentUser: User | null;
+  onSuccess?: () => void;
 }
 
-export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, currentUser }: AddUserDialogProps) {
+export default function AddUserDialog({ user, isOpen, onOpenChange, currentUser, onSuccess }: AddUserDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const { toast } = useToast()
-  const [users] = useLocalStorage<User[]>('foneflow-users', []);
 
   const isEditMode = !!user;
 
@@ -58,7 +60,8 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, c
 
   const getInitialValues = () => {
     if (isEditMode && user) {
-      return { name: user.name, email: user.email, password: user.password, role: user.role }
+      // Password is not editable for existing users via this form for security reasons
+      return { name: user.name, email: user.email, password: "password", role: user.role }
     }
     return { name: "", email: "", password: "", role: "user" as const }
   }
@@ -74,39 +77,47 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, c
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, form]);
 
-  function onSubmit(data: UserFormValues) {
-    const emailInUse = users.some(
-      (u) => u.email === data.email && u.id !== user?.id
-    );
-
-    if (emailInUse) {
-      form.setError("email", {
-        type: "manual",
-        message: "This email is already in use.",
-      });
-      return;
+  async function onSubmit(data: UserFormValues) {
+    setIsSaving(true);
+    // In a real app, creating a user would be a backend operation for security.
+    // This is a simplified client-side version.
+    // We can't create a user in Firebase Auth from the client without signing them in.
+    // So we'll just store their details in Firestore. This is NOT secure for production.
+    const id = isEditMode && user ? user.id : doc(doc(db, 'users', 'placeholder')).id;
+    const userData: Omit<User, 'password'> = {
+      id,
+      name: data.name,
+      email: data.email,
+      role: data.role
     }
 
-    const newUser: User = {
-      ...data,
-      id: isEditMode && user ? user.id : `user_${new Date().getTime()}`,
-    }
-    onAddUser(newUser)
-    toast({
-        title: "Success!",
-        description: `User has been ${isEditMode ? 'updated' : 'added'}.`,
-        variant: "default",
-    })
-    setOpen(false)
-    if (!isEditMode) {
-      form.reset()
+    try {
+        await setDoc(doc(db, "users", id), userData);
+        toast({
+            title: "Success!",
+            description: `User has been ${isEditMode ? 'updated' : 'added'}.`,
+        })
+        setOpen(false)
+        if (!isEditMode) {
+          form.reset()
+        }
+        if(onSuccess) onSuccess();
+    } catch(e) {
+        console.error("Error saving user:", e);
+        toast({
+            title: "Error",
+            description: "Could not save user details. The email might already be in use.",
+            variant: "destructive"
+        })
+    } finally {
+        setIsSaving(false);
     }
   }
 
   const dialogTitle = isEditMode ? "Edit User" : "Add New User";
   const dialogDescription = isEditMode
     ? "Update the details of the user."
-    : "Enter the details of the new user.";
+    : "Enter the details of the new user. Password cannot be changed here.";
   const buttonText = isEditMode ? "Save Changes" : "Save User";
 
   const TriggerButton = (
@@ -133,7 +144,7 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, c
             <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Name</FormLabel>
-                  <FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl>
+                  <FormControl><Input placeholder="e.g., John Doe" {...field} disabled={isSaving} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -141,23 +152,25 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, c
              <FormField control={form.control} name="email" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Email</FormLabel>
-                  <FormControl><Input type="email" placeholder="e.g., john.doe@example.com" {...field} /></FormControl>
+                  <FormControl><Input type="email" placeholder="e.g., john.doe@example.com" {...field} disabled={isSaving || isEditMode} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField control={form.control} name="password" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl><Input type="password" placeholder="Enter password" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            {!isEditMode && (
+              <FormField control={form.control} name="password" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl><Input type="password" placeholder="Enter password" {...field} disabled={isSaving} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
             />
+            )}
             <FormField control={form.control} name="role" render={({ field }) => (
                   <FormItem>
                       <FormLabel>Role</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={isSaving}>
                           <FormControl>
                           <SelectTrigger>
                               <SelectValue placeholder="Select a role" />
@@ -173,8 +186,8 @@ export default function AddUserDialog({ onAddUser, user, isOpen, onOpenChange, c
               )} 
             />
             <DialogFooter>
-               <Button type="submit">
-                  <Save className="mr-2 h-4 w-4" />
+               <Button type="submit" disabled={isSaving}>
+                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   {buttonText}
                 </Button>
             </DialogFooter>

@@ -1,84 +1,94 @@
-
+// src/app/settings/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import useLocalStorage from "@/hooks/use-local-storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Save, ArrowLeft, Loader2 } from "lucide-react";
-import type { User } from "@/lib/types";
+import type { User as UserType } from "@/lib/types";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: z.string().min(4, "New password must be at least 4 characters"),
+  newPassword: z.string().min(6, "New password must be at least 6 characters"),
 });
 
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsPage() {
-  const [currentUser, setCurrentUser] = useLocalStorage<User | null>('foneflow-currentUser', null);
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // In a real app, you'd fetch user profile from Firestore here.
+        // For now, we'll just use the auth object.
+        setCurrentUser({
+            id: user.uid,
+            email: user.email!,
+            name: user.displayName || 'User',
+            role: 'user' // This should be fetched from Firestore
+        });
+      } else {
+        router.replace('/login');
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { currentPassword: "", newPassword: "" },
   });
 
-  if (!currentUser) {
-      router.replace('/login');
-      return null;
-  }
-
-  function onSubmit(data: PasswordFormValues) {
+  async function onSubmit(data: PasswordFormValues) {
     setIsSaving(true);
-    if (data.currentPassword !== currentUser?.password) {
-      toast({
-        title: "Error",
-        description: "Incorrect current password.",
-        variant: "destructive",
-      });
+    const user = auth.currentUser;
+
+    if (!user || !user.email) {
+      toast({ title: "Error", description: "Not authenticated.", variant: "destructive" });
       setIsSaving(false);
       return;
     }
     
-    const updatedUser = { ...currentUser, password: data.newPassword };
-    
     try {
-        const usersRaw = localStorage.getItem('foneflow-users');
-        if (usersRaw) {
-            const allUsers: User[] = JSON.parse(usersRaw);
-            const updatedUsers = allUsers.map(u => u.id === currentUser.id ? updatedUser : u);
-            localStorage.setItem('foneflow-users', JSON.stringify(updatedUsers));
-            setCurrentUser(updatedUser);
-            window.dispatchEvent(new Event('local-storage'));
-        }
-    } catch (e) {
-        console.error("Failed to update users in localStorage", e);
-        toast({
-            title: "Error",
-            description: "Could not save password change.",
-            variant: "destructive",
-        })
-        setIsSaving(false);
-        return;
+      const credential = EmailAuthProvider.credential(user.email, data.currentPassword);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, data.newPassword);
+      
+      toast({ title: "Success", description: "Password updated successfully." });
+      form.reset();
+    } catch (error) {
+      console.error("Password update error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update password. Please check your current password.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
+  }
 
-
-    toast({
-      title: "Success",
-      description: "Password updated successfully.",
-    });
-    form.reset();
-    setIsSaving(false);
+  if (isLoading || !currentUser) {
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    );
   }
 
   return (
