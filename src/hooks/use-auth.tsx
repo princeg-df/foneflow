@@ -3,7 +3,7 @@
 
 import { useState, useEffect, createContext, useContext, type ReactNode } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { User } from '@/lib/types';
 import { toast } from './use-toast';
@@ -18,19 +18,28 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
 });
 
-// A flag to ensure the admin check runs only once per application lifecycle.
 let adminCheckCompleted = false;
 
 const checkAndCreateAdmin = async () => {
     if (adminCheckCompleted) return;
     adminCheckCompleted = true;
 
-    const defaultAdminEmail = 'princegupta619@gmail.com';
-    const defaultAdminPassword = 'Qwerty@123';
-    
+    const defaultAdminEmail = 'admin@foneflow.com';
+    const defaultAdminPassword = 'Admin@123';
+
     try {
-        await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
-        // This is a side-effect to create the user doc. We can sign out immediately.
+        const userCredential = await createUserWithEmailAndPassword(auth, defaultAdminEmail, defaultAdminPassword);
+        const user = userCredential.user;
+        // After creating the user in Auth, create their document in Firestore
+        const userDocRef = doc(db, 'users', user.uid);
+        const userData: User = {
+            id: user.uid,
+            email: defaultAdminEmail,
+            name: 'Default Admin',
+            role: 'admin',
+        };
+        await setDoc(userDocRef, userData);
+        // Important: Sign out immediately so this initial setup doesn't affect the user's login flow.
         await auth.signOut();
     } catch (error: any) {
         if (error.code === 'auth/email-already-in-use') {
@@ -51,43 +60,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Run the admin check once on startup.
     checkAndCreateAdmin();
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        // User is logged in Firebase Auth, now get their profile from Firestore.
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const unsubSnapshot = onSnapshot(userDocRef, (docSnap) => {
+          setIsLoading(true);
           if (docSnap.exists()) {
             setUser({ id: docSnap.id, ...docSnap.data() } as User);
           } else {
-            // User authenticated in Firebase Auth but no record in Firestore.
-            // This can happen if the user is deleted from the DB but not Auth.
-            // Log them out to be safe.
             setUser(null);
-            auth.signOut();
           }
           setIsLoading(false);
         }, (error) => {
             console.error("Firestore snapshot error:", error);
-            toast({
-                title: "Database Connection Error",
-                description: "Could not fetch user profile. Please ensure Firestore is enabled in your Firebase project.",
-                variant: "destructive",
-            });
             setUser(null);
             setIsLoading(false);
         });
-        return () => unsubSnapshot(); // Unsubscribe from Firestore listener
+        return () => unsubSnapshot();
       } else {
-        // No firebase user, so not logged in.
         setUser(null);
         setIsLoading(false);
       }
     });
 
-    return () => unsubscribe(); // Unsubscribe from Auth listener
+    return () => unsubscribe();
   }, []);
 
   return (

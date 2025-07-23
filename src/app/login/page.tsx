@@ -23,8 +23,8 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const defaultAdminEmail = 'princegupta619@gmail.com';
-const defaultAdminPassword = 'Qwerty@123';
+const defaultAdminEmail = 'admin@foneflow.com';
+const defaultAdminPassword = 'Admin@123';
 
 export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,7 +57,8 @@ export default function LoginPage() {
         description: "Incorrect email or password. Please try again.",
         variant: "destructive",
       });
-      setIsSubmitting(false);
+    } finally {
+        setIsSubmitting(false);
     }
   }
   
@@ -72,17 +73,6 @@ export default function LoginPage() {
     );
   }
   
-  // If after loading, the user object exists, it means the redirect is in progress.
-  // We can show the loading screen as well to avoid the form flashing.
-  if(user) {
-     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-4">Redirecting to dashboard...</p>
-      </div>
-    );
-  }
-
   // If not loading and no user, show the login form.
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
